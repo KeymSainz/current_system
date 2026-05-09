@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fix&Go — Supervisor Dashboard</title>
+  <link rel="stylesheet" href="../../../bootstrap-5.3.8-dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="../../../assets/css/auth.css?v=5" />
+  <link rel="stylesheet" href="../../../assets/css/supplier.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    body { background: var(--fg-bg); margin: 0; }
+    .supervisor-layout { display: flex; min-height: calc(100vh - 68px); }
+    .supervisor-sidebar {
+      width: 240px; flex-shrink: 0; background: var(--fg-card-bg);
+      border-right: 1px solid var(--fg-border); padding: 1.5rem 0;
+      position: sticky; top: 68px; height: calc(100vh - 68px); overflow-y: auto;
+    }
+    .sidebar-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--fg-muted); padding: 0 1.25rem; margin-bottom: 0.5rem;
+    }
+    .sidebar-nav { list-style: none; padding: 0; margin: 0; }
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1.25rem;
+      color: var(--fg-muted); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+      border-left: 3px solid transparent; transition: all 0.2s;
+    }
+    .sidebar-nav a:hover { color: var(--fg-primary); background: rgba(230,168,0,0.07); border-left-color: var(--fg-primary); }
+    .sidebar-nav a.active { color: var(--fg-primary); background: rgba(230,168,0,0.1); border-left-color: var(--fg-primary); font-weight: 700; }
+    .sidebar-nav a i { font-size: 1rem; width: 20px; text-align: center; }
+    .supervisor-main { flex: 1; padding: 2rem; min-width: 0; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h2 { font-size: 1.8rem; font-weight: 800; color: var(--fg-text); margin: 0 0 0.5rem 0; }
+    .page-header p { color: var(--fg-muted); margin: 0; font-size: 0.9rem; }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1.25rem; margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--fg-card-bg); border: 1px solid var(--fg-border);
+      border-radius: 14px; padding: 1.5rem;
+      display: flex; align-items: center; gap: 1rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.12); }
+    .stat-icon {
+      width: 56px; height: 56px; border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; flex-shrink: 0;
+    }
+    .stat-content { flex: 1; }
+    .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; margin-bottom: 0.3rem; }
+    .stat-label { font-size: 0.75rem; color: var(--fg-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .quick-actions {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .action-card {
+      background: var(--fg-card-bg); border: 1px solid var(--fg-border);
+      border-radius: 14px; padding: 1.5rem;
+      text-align: center; cursor: pointer;
+      transition: all 0.2s; text-decoration: none;
+    }
+    .action-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      border-color: var(--fg-primary);
+    }
+    .action-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; margin: 0 auto 1rem;
+    }
+    .action-title {
+      font-size: 1rem; font-weight: 700; color: var(--fg-text);
+      margin-bottom: 0.3rem;
+    }
+    .action-desc {
+      font-size: 0.8rem; color: var(--fg-muted);
+    }
+    .role-badge.supervisor {
+      background: rgba(230,168,0,0.12); color: #c98f00;
+      padding: 0.35rem 0.9rem; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    @media (max-width: 992px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .quick-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="fg-navbar" role="navigation">
+    <div class="d-flex align-items-center gap-3">
+      <div style="display:flex;align-items:center;">
+        <img src="../../../assets/images/logo.png" alt="Fix&Go"
+             style="height:48px;width:auto;object-fit:contain;"
+             onerror="this.outerHTML='<span style=\'font-size:1.2rem;font-weight:800;color:var(--fg-primary);\'>🔧 Fix&amp;Go</span>'">
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="role-badge supervisor"><i class="bi bi-person-check"></i> Supervisor</span>
+      <span id="navUserName" style="font-size:0.9rem;font-weight:600;color:var(--fg-text);"></span>
+      <button class="theme-toggle" id="themeToggle"><i class="bi bi-moon-fill" id="themeIcon"></i></button>
+      <a href="dashboard.html" class="btn btn-sm"
+         style="border:1.5px solid var(--fg-border);border-radius:8px;color:var(--fg-muted);background:transparent;font-size:0.85rem;text-decoration:none;">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+  </nav>
+
+  <div class="supervisor-layout">
+    <aside class="supervisor-sidebar">
+      <div class="sidebar-label">Navigation</div>
+      <ul class="sidebar-nav">
+        <li><a href="dashboard.html" class="active"><i class="bi bi-house-fill"></i> Dashboard</a></li>
+        <li><a href="inventory.html"><i class="bi bi-box-seam"></i> Inventory Management</a></li>
+        <li><a href="reports.html"><i class="bi bi-bar-chart-line"></i> Reports</a></li>
+        <li><a href="profile.html"><i class="bi bi-person-circle"></i> Profile</a></li>
+      </ul>
+    </aside>
+
+    <main class="supervisor-main">
+      <div class="page-header">
+        <h2>Supervisor Dashboard</h2>
+        <p>Overview of inventory and operations</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" style="color:#3b82f6;" id="statTotalProducts">0</div>
+            <div class="stat-label">Total Products</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
+            <i class="bi bi-check-circle"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" style="color:#10b981;" id="statInStock">0</div>
+            <div class="stat-label">In Stock</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(239,68,68,0.12);color:#ef4444;">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" style="color:#ef4444;" id="statLowStock">0</div>
+            <div class="stat-label">Low Stock</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:rgba(230,168,0,0.12);color:#e6a800;">
+            <i class="bi bi-currency-dollar"></i>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" style="color:#e6a800;" id="statTotalValue">₱0</div>
+            <div class="stat-label">Total Value</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <a href="inventory.html" class="action-card">
+          <div class="action-icon" style="background:rgba(59,130,246,0.12);color:#3b82f6;">
+            <i class="bi bi-box-seam"></i>
+          </div>
+          <div class="action-title">Manage Inventory</div>
+          <div class="action-desc">View, add, edit, and delete products</div>
+        </a>
+        <a href="inventory.html?action=add" class="action-card">
+          <div class="action-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
+            <i class="bi bi-plus-circle"></i>
+          </div>
+          <div class="action-title">Add Product</div>
+          <div class="action-desc">Add new product to inventory</div>
+        </a>
+        <a href="reports.html" class="action-card">
+          <div class="action-icon" style="background:rgba(230,168,0,0.12);color:#e6a800;">
+            <i class="bi bi-bar-chart-line"></i>
+          </div>
+          <div class="action-title">View Reports</div>
+          <div class="action-desc">Inventory reports and analytics</div>
+        </a>
+      </div>
+    </main>
+  </div>
+
+  <script src="../../../bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../../../assets/js/theme.js"></script>
+  <script src="../../../assets/js/auth-utils.js"></script>
+  <script src="../../assets/js/session-timeout.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      document.addEventListener('DOMContentLoaded', function() {
+        const user = FGAuth.UserStore.get();
+        if (!user || user.role !== 'supervisor') {
+          window.location.href = '../../../login.html';
+          return;
+        }
+
+        const fullName = (user.firstName || '') + ' ' + (user.lastName || '');
+        document.getElementById('navUserName').textContent = fullName.trim() || user.email || 'Supervisor';
+
+        loadStats();
+      });
+
+      function loadStats() {
+        fetch('../../../backend/supervisor_inventory.php?action=stats', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.stats) {
+            document.getElementById('statTotalProducts').textContent = data.stats.total_products || 0;
+            document.getElementById('statInStock').textContent = data.stats.in_stock || 0;
+            document.getElementById('statLowStock').textContent = data.stats.low_stock || 0;
+            document.getElementById('statTotalValue').textContent = '₱' + (parseFloat(data.stats.total_value || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+          }
+        })
+        .catch(err => console.error('Failed to load stats:', err));
+      }
+    })();
+  </script>
+</body>
+</html>

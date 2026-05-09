@@ -1,0 +1,82 @@
+/* ============================================================
+   Fix&Go — Dashboard Styles
+   ============================================================ */
+
+body {
+  background: var(--fg-bg);
+}
+
+/* Fix container clipping Bootstrap row negative margins */
+.container {
+  max-width: 1200px;
+  overflow: visible;
+}
+
+/* Ensure rows never get clipped */
+.row {
+  overflow: visible;
+}
+
+/* Dashboard card base */
+.dashboard-card {
+  background: var(--fg-card-bg);
+  border-radius: var(--fg-radius);
+  box-shadow: var(--fg-shadow);
+  border: 1px solid var(--fg-border);
+  padding: 1.5rem;
+  overflow: visible;
+  transition: border-color 0.2s ease;
+}
+
+/* Stat card value */
+.dashboard-card .stat-value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Action card hover */
+.dashboard-card[role="button"]:focus {
+  outline: 2px solid var(--fg-primary);
+  outline-offset: 2px;
+}
+
+/* Section title divider */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  margin-top: 0.5rem;
+}
+
+.section-divider h5 {
+  margin: 0;
+  font-weight: 700;
+  color: var(--fg-text);
+  white-space: nowrap;
+}
+
+.section-divider hr {
+  flex: 1;
+  border-color: var(--fg-border);
+  margin: 0;
+  opacity: 1;
+}
+
+/* Responsive grid tweaks */
+@media (max-width: 576px) {
+  .dashboard-card { padding: 1rem; }
+}
+
+/* Modal animation */
+@keyframes modalIn {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95) translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
+}

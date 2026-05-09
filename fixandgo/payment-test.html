@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fix&amp;Go — Test Payment</title>
+  <link rel="stylesheet" href="assets/css/auth.css?v=5" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    body {
+      background: var(--fg-bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .pay-wrap {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* Logo */
+    .pay-logo {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+    .pay-logo img {
+      height: 52px;
+      object-fit: contain;
+    }
+
+    /* Card */
+    .pay-card {
+      background: var(--fg-card-bg);
+      border: 1px solid var(--fg-border);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+
+    /* Gold top bar */
+    .pay-card-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--fg-primary), #f5d020, var(--fg-primary));
+    }
+
+    .pay-card-head {
+      padding: 1.75rem 2rem 1.25rem;
+      border-bottom: 1px solid var(--fg-border);
+    }
+    .pay-card-head h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--fg-text);
+      margin: 0 0 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .pay-card-head p {
+      font-size: 0.83rem;
+      color: var(--fg-muted);
+      margin: 0;
+    }
+
+    .test-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(230,168,0,0.15);
+      color: var(--fg-primary);
+      border: 1px solid rgba(230,168,0,0.3);
+      padding: 0.15rem 0.55rem;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .pay-card-body {
+      padding: 1.5rem 2rem;
+    }
+
+    /* Order items */
+    .order-items {
+      background: var(--fg-bg);
+      border: 1px solid var(--fg-border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 1.25rem;
+    }
+    .order-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--fg-border);
+      gap: 0.75rem;
+    }
+    .order-item:last-child { border-bottom: none; }
+    .order-item-left { display: flex; align-items: center; gap: 0.65rem; }
+    .order-item-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: rgba(230,168,0,0.1);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--fg-primary); font-size: 1rem; flex-shrink: 0;
+    }
+    .order-item-name {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--fg-text);
+      line-height: 1.3;
+    }
+    .order-item-qty {
+      font-size: 0.72rem;
+      color: var(--fg-muted);
+    }
+    .order-item-price {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--fg-primary);
+      white-space: nowrap;
+    }
+
+    /* Total row */
+    .order-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      background: rgba(230,168,0,0.06);
+      border: 1px solid rgba(230,168,0,0.2);
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .order-total-label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--fg-text);
+    }
+    .order-total-amount {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--fg-primary);
+    }
+
+    /* Test card hint */
+    .test-hint {
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--fg-muted);
+    }
+    .test-hint strong { color: #3b82f6; }
+    .test-hint code {
+      background: rgba(59,130,246,0.12);
+      color: #3b82f6;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+
+    /* Alert */
+    .pay-alert {
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .pay-alert.show { display: flex; }
+    .pay-alert.danger { background: rgba(220,53,69,0.1); color: #dc3545; border: 1px solid rgba(220,53,69,0.25); }
+
+    /* Pay button */
+    .btn-pay {
+      width: 100%;
+      padding: 0.9rem;
+      border-radius: 12px;
+      border: none;
+      background: var(--fg-primary);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 16px rgba(230,168,0,0.3);
+    }
+    .btn-pay:hover:not(:disabled) {
+      background: var(--fg-primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(230,168,0,0.45);
+    }
+    .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Back link */
+    .back-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: var(--fg-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--fg-text); }
+
+    /* Spinner */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="pay-wrap">
+
+    <!-- Logo -->
+    <div class="pay-logo">
+      <img src="assets/images/logo.png" alt="Fix&Go"
+           onerror="this.outerHTML='<div style=\'font-size:1.4rem;font-weight:800;color:var(--fg-primary);\'>🔧 Fix&amp;Go</div>'">
+    </div>
+
+    <div class="pay-card">
+      <div class="pay-card-bar"></div>
+
+      <div class="pay-card-head">
+        <h2>
+          <i class="bi bi-cart-fill" style="color:var(--fg-primary);"></i>
+          Test Payment
+          <span class="test-badge">TEST MODE</span>
+        </h2>
+        <p>No real money is charged. Use the test card below.</p>
+      </div>
+
+      <div class="pay-card-body">
+
+        <!-- Order items -->
+        <div class="order-items">
+          <div class="order-item">
+            <div class="order-item-left">
+              <div class="order-item-icon"><i class="bi bi-phone"></i></div>
+              <div>
+                <div class="order-item-name">iPhone 14 Tempered Glass 2.5D</div>
+                <div class="order-item-qty">Qty: 2 &nbsp;·&nbsp; from kim supplier</div>
+              </div>
+            </div>
+            <div class="order-item-price">₱598.00</div>
+          </div>
+          <div class="order-item">
+            <div class="order-item-left">
+              <div class="order-item-icon"><i class="bi bi-battery-full"></i></div>
+              <div>
+                <div class="order-item-name">Samsung Galaxy S8 Battery 3000mAh</div>
+                <div class="order-item-qty">Qty: 1 &nbsp;·&nbsp; from kim supplier</div>
+              </div>
+            </div>
+            <div class="order-item-price">₱450.00</div>
+          </div>
+        </div>
+
+        <!-- Total -->
+        <div class="order-total">
+          <span class="order-total-label">Total Amount</span>
+          <span class="order-total-amount">₱1,048.00</span>
+        </div>
+
+        <!-- Test card hint -->
+        <div class="test-hint">
+          <i class="bi bi-info-circle-fill" style="color:#3b82f6;flex-shrink:0;"></i>
+          <div>
+            Use test card &nbsp;<code>4343 4343 4343 4345</code>&nbsp;
+            with any future expiry and any CVV to complete the payment.
+          </div>
+        </div>
+
+        <!-- Error alert -->
+        <div class="pay-alert danger" id="payAlert">
+          <i class="bi bi-exclamation-circle-fill"></i>
+          <span id="payAlertMsg"></span>
+        </div>
+
+        <!-- Pay button -->
+        <button class="btn-pay" id="btnPay" onclick="startPayment()">
+          <div class="spinner" id="paySpinner"></div>
+          <i class="bi bi-lock-fill" id="payIcon"></i>
+          <span id="payText">Pay ₱1,048.00</span>
+        </button>
+
+        <a href="dashboard.html" class="back-link">
+          <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="assets/js/theme.js"></script>
+  <script src="assets/js/auth-utils.js"></script>
+  <script src="assets/js/session-timeout.js"></script>
+  <script>
+    // Auth guard
+    const user = FGAuth.UserStore.get();
+    if (!user || user.role !== 'owner') {
+      window.location.href = 'login.html';
+    }
+
+    function startPayment() {
+      const btn     = document.getElementById('btnPay');
+      const spinner = document.getElementById('paySpinner');
+      const icon    = document.getElementById('payIcon');
+      const text    = document.getElementById('payText');
+      const alert   = document.getElementById('payAlert');
+
+      btn.disabled          = true;
+      spinner.style.display = 'block';
+      icon.style.display    = 'none';
+      text.textContent      = 'Creating session…';
+      alert.classList.remove('show');
+
+      fetch('backend/paymongo_test.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [
+            { name: 'iPhone 14 Tempered Glass 2.5D Full Cover', description: 'Tempered Glass', amount: 29900, quantity: 2, currency: 'PHP' },
+            { name: 'Samsung Galaxy S8 Battery 3000mAh',        description: 'Battery',        amount: 45000, quantity: 1, currency: 'PHP' },
+          ],
+        }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.success) {
+            showErr(data.message || 'PayMongo error. Check your API keys in config.php.');
+            return;
+          }
+          text.textContent = 'Redirecting…';
+          window.location.href = data.checkout_url;
+        })
+        .catch(() => showErr('Could not connect. Make sure XAMPP is running.'));
+
+      function showErr(msg) {
+        btn.disabled          = false;
+        spinner.style.display = 'none';
+        icon.style.display    = 'inline';
+        text.textContent      = 'Pay ₱1,048.00';
+        document.getElementById('payAlertMsg').textContent = msg;
+        alert.classList.add('show');
+      }
+    }
+  </script>
+
+</body>
+</html>

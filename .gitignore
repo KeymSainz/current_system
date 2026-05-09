@@ -1,0 +1,61 @@
+# Sensitive configuration files
+fixandgo/backend/config.php
+fixandgo/backend/db.php
+
+# Environment files
+.env
+.env.local
+
+# Uploaded files (images, documents)
+fixandgo/uploads/
+fixandgo/assets/uploads/
+
+# Logs
+*.log
+error_log
+debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Node modules (if you add any)
+node_modules/
+
+# Composer vendor (if you add any)
+vendor/
+
+# Database dumps
+*.sql.gz
+*.sql.zip
+backup_*.sql
+
+# PHPMailer (if it's a dependency, consider using Composer instead)
+# PHPMailer-PHPMailer-3cd2a2a/
+
+# Test files
+test_*.php
+debug_*.php
+fixandgo/backend/test_*.php
+fixandgo/backend/debug_*.php
+fixandgo/backend/quick_check.php
+fixandgo/backend/diagnose_and_fix.php
+fixandgo/backend/force_fix_status.php
+fixandgo/backend/check_*.php
+
+# Cache
+cache/
+*.cache

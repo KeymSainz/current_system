@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Logout</title>
+</head>
+<body>
+  <h1>Test Logout Functionality</h1>
+  <button id="testLogout" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+    Click to Test Logout
+  </button>
+  
+  <div id="output" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
+    <h3>Console Output:</h3>
+    <pre id="log"></pre>
+  </div>
+
+  <script>
+    const logEl = document.getElementById('log');
+    
+    function log(message) {
+      console.log(message);
+      logEl.textContent += message + '\n';
+    }
+    
+    document.getElementById('testLogout').addEventListener('click', function() {
+      log('Button clicked!');
+      log('Redirecting to: index.html?logout=true');
+      
+      setTimeout(function() {
+        window.location.href = 'index.html?logout=true';
+      }, 1000);
+    });
+    
+    log('Test page loaded');
+    log('Button element: ' + document.getElementById('testLogout'));
+  </script>
+</body>
+</html>
