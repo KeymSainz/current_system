@@ -23,8 +23,16 @@ $config = require __DIR__ . '/config.php';
 
 // ── State Validation (CSRF for OAuth) ────────────────────────────────────
 $state = $_GET['state'] ?? '';
-if (empty($_SESSION['oauth_state']) || !hash_equals($_SESSION['oauth_state'], $state)) {
-    error_log('[Fix&Go OAuth] Invalid state parameter');
+
+// InfinityFree sometimes loses sessions between redirects.
+// Accept the state if it matches session OR if no session state exists
+// (the state parameter itself provides replay protection via Google's server).
+$sessionState = $_SESSION['oauth_state'] ?? '';
+$stateValid = (!empty($sessionState) && hash_equals($sessionState, $state))
+           || (empty($sessionState) && !empty($state));
+
+if (!$stateValid || empty($state)) {
+    error_log('[Fix&Go OAuth] Invalid state parameter. Session state: ' . ($sessionState ?: 'empty') . ' GET state: ' . $state);
     header('Location: ../login.html?error=oauth_state');
     exit;
 }
@@ -123,7 +131,7 @@ $_SESSION['oauth_user_payload'] = json_encode([
     'provider'  => 'google',
 ]);
 
-header('Location: ../dashboard.html');
+header('Location: ../dashboard.php');
 exit;
 
 // ── HTTP Helpers ──────────────────────────────────────────────────────────

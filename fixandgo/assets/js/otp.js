@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const pendingPurpose = sessionStorage.getItem('fg_pending_purpose') || 'verify';
 
   if (!pendingEmail) {
-    window.location.href = 'register.html';
+    window.location.href = 'register.php';
     return;
   }
 
@@ -28,8 +28,13 @@ document.addEventListener('DOMContentLoaded', function () {
   const MAX_ATTEMPTS = 3;
 
   // ── Fetch real CSRF token ──────────────────────────────────────────────
+  const _B = window.FG_BACKEND || (function() {
+    var parts = window.location.pathname.split('/').filter(Boolean);
+    return parts.length <= 1 ? 'fixandgo/backend/' : 'backend/';
+  })();
+
   let csrfToken = '';
-  fetch('backend/csrf-token.php')
+  fetch(_B + 'csrf-token.php')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       csrfToken = data.token;
@@ -94,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fd.append('email',   pendingEmail);
     fd.append('purpose', pendingPurpose);
 
-    fetch('backend/resend-otp.php', { method: 'POST', body: fd })
+    fetch(_B + 'resend-otp.php', { method: 'POST', body: fd, credentials: 'include' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         FGAuth.showAlert('otpAlert', data.message,
@@ -142,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fd.append('otp',     enteredCode);
     fd.append('purpose', pendingPurpose);
 
-    fetch('backend/verify-otp.php', { method: 'POST', body: fd })
+    fetch(_B + 'verify-otp.php', { method: 'POST', body: fd, credentials: 'include' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         FGAuth.setButtonLoading(verifyBtn, false);
@@ -171,12 +176,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const postRedirect = sessionStorage.getItem('fg_post_login_redirect') || '';
         sessionStorage.removeItem('fg_post_login_redirect');
 
-        // Role-based redirect
-        let redirectUrl = postRedirect || data.redirect || 'dashboard.html';
-        
-        // If no specific redirect and user is supervisor, go to supervisor dashboard
+        // Role-based redirect — go to index.php marketplace after login/verify
+        let redirectUrl = postRedirect || 'index.php';
+
+        // Supervisors go straight to their own dashboard
         if (!postRedirect && data.user && data.user.role === 'supervisor') {
-          redirectUrl = 'views/user/supervisor/dashboard.html';
+          redirectUrl = 'views/user/supervisor/dashboard.php';
         }
 
         setTimeout(function () {

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Fix&Go — Logout Endpoint
  * POST /backend/logout.php
@@ -49,6 +49,6 @@ if ($isAjax || $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     echo json_encode(['success' => true]);
 } else {
-    header('Location: ../index.html?logout=true');
+    header('Location: ../index.php?logout=true');
 }
 exit;

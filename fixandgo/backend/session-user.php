@@ -113,7 +113,11 @@ if (!empty($_SESSION['oauth_user_payload'])) {
 
 // Otherwise fetch from DB
 $pdo  = require __DIR__ . '/db.php';
-$stmt = $pdo->prepare('SELECT id, first_name, last_name, email, phone, role, is_verified, created_at FROM users WHERE id = ? LIMIT 1');
+$stmt = $pdo->prepare(
+    'SELECT id, first_name, last_name, email, phone, role, is_verified, created_at,
+            avatar_url
+     FROM users WHERE id = ? LIMIT 1'
+);
 $stmt->execute([$userId]);
 $u = $stmt->fetch();
 
@@ -127,13 +131,14 @@ if (!$u) {
 echo json_encode([
     'loggedIn' => true,
     'user' => [
-        'id'        => $u['id'],
-        'firstName' => $u['first_name'],
-        'lastName'  => $u['last_name'],
-        'email'     => $u['email'],
-        'phone'     => $u['phone'] ?? '',
-        'role'      => $u['role'],
-        'verified'  => (bool) $u['is_verified'],
-        'createdAt' => $u['created_at'],
+        'id'         => $u['id'],
+        'firstName'  => $u['first_name'],
+        'lastName'   => $u['last_name'],
+        'email'      => $u['email'],
+        'phone'      => $u['phone'] ?? '',
+        'role'       => $u['role'],
+        'verified'   => (bool) $u['is_verified'],
+        'createdAt'  => $u['created_at'],
+        'avatar_url' => $u['avatar_url'] ?? null,
     ],
 ]);

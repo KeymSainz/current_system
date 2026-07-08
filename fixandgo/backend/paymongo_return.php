@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Fix&Go — PayMongo Return Handler
  * PayMongo redirects here after payment success or cancel.
@@ -147,8 +147,8 @@ $status = $_GET['status'] ?? 'cancel';
 $ref    = trim($_GET['ref'] ?? '');
 
 $appUrl    = rtrim($config['app_url'], '/');
-$dashUrl   = $appUrl . '/dashboard.html';
-$successUrl = $appUrl . '/payment-success.html';
+$dashUrl   = $appUrl . '/dashboard.php';
+$successUrl = $appUrl . '/payment-success.php';
 
 if ($ref) {
     if ($status === 'success') {

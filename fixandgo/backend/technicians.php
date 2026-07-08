@@ -35,44 +35,43 @@ try {
         $sql = "SELECT u.id,
                        u.first_name,
                        u.last_name,
-                       u.avatar_url,
+                       COALESCE(u.profile_image, u.avatar_url) AS avatar_url,
                        u.created_at,
-                       COALESCE(tp.specialization, '')         AS specialization,
+                       COALESCE(u.specializations, tp.specialization, '') AS specialization,
                        COALESCE(tp.experience_years, 0)        AS experience_years,
-                       COALESCE(tp.bio, '')                    AS bio,
+                       COALESCE(u.bio, tp.bio, '')             AS bio,
                        COALESCE(tp.availability, 'available')  AS availability,
                        COALESCE(tp.rating_avg, 0.00)           AS rating_avg,
                        COALESCE(tp.rating_count, 0)            AS rating_count,
-                       s.name  AS shop_name,
-                       s.city  AS shop_city
+                       COALESCE(u.shop_name, s.name)           AS shop_name,
+                       s.city                                  AS shop_city
                 FROM users u
                 LEFT JOIN technician_profiles tp ON tp.user_id = u.id
                 LEFT JOIN shop_members sm         ON sm.user_id = u.id
                 LEFT JOIN shops s                 ON s.id = sm.shop_id AND s.is_active = 1
-                WHERE u.role      = 'phone_technician'
+                WHERE u.role IN ('phone_technician', 'sales_person')
                   AND u.is_active = 1
-                ORDER BY u.first_name ASC, u.last_name ASC";
+                ORDER BY tp.rating_avg DESC, u.first_name ASC";
     } else {
-        // Migration not run yet — query without profile join
         $sql = "SELECT u.id,
                        u.first_name,
                        u.last_name,
-                       u.avatar_url,
+                       COALESCE(u.profile_image, u.avatar_url) AS avatar_url,
                        u.created_at,
-                       ''           AS specialization,
-                       0            AS experience_years,
-                       ''           AS bio,
-                       'available'  AS availability,
-                       0.00         AS rating_avg,
-                       0            AS rating_count,
-                       s.name  AS shop_name,
-                       s.city  AS shop_city
+                       COALESCE(u.specializations, '')  AS specialization,
+                       0                                AS experience_years,
+                       COALESCE(u.bio, '')              AS bio,
+                       'available'                      AS availability,
+                       0.00                             AS rating_avg,
+                       0                                AS rating_count,
+                       COALESCE(u.shop_name, s.name)    AS shop_name,
+                       s.city                           AS shop_city
                 FROM users u
                 LEFT JOIN shop_members sm ON sm.user_id = u.id
                 LEFT JOIN shops s         ON s.id = sm.shop_id AND s.is_active = 1
-                WHERE u.role      = 'phone_technician'
+                WHERE u.role IN ('phone_technician', 'sales_person')
                   AND u.is_active = 1
-                ORDER BY u.first_name ASC, u.last_name ASC";
+                ORDER BY u.first_name ASC";
     }
 
     $technicians = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);

@@ -132,16 +132,30 @@ if ($method === 'GET') {
 
     // ── Pending applicants ────────────────────────────────────
     if ($action === 'applicants') {
+        // Check if doc_cert column exists (added by technician migration)
+        $hasCert = (bool) $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME   = 'seller_applications'
+               AND COLUMN_NAME  = 'doc_cert'"
+        )->fetchColumn();
+
+        $certCol = $hasCert ? "sa.doc_cert" : "NULL AS doc_cert";
+
         $stmt = $pdo->query(
             "SELECT sa.id, sa.first_name, sa.last_name, sa.email, sa.phone,
                     sa.role, sa.company_name, sa.shop_name,
                     sa.doc_gov_id, sa.doc_bir, sa.doc_dti, sa.doc_bank,
+                    {$certCol},
+                    sa.specializations, sa.experience_yrs,
+                    sa.shop_address, sa.business_name, sa.entity_type,
                     sa.status, sa.submitted_at
              FROM seller_applications sa
              WHERE sa.status = 'pending'
              ORDER BY sa.submitted_at ASC"
         );
-        echo json_encode(['success' => true, 'applicants' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        $applicants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'applicants' => $applicants]);
         exit;
     }
 
@@ -165,8 +179,8 @@ if ($method === 'GET') {
 
         // Get application documents from seller_applications table
         $stmt = $pdo->prepare(
-            "SELECT id, company_name, shop_name, doc_gov_id, doc_bir, doc_dti, doc_bank, 
-                    status, submitted_at, admin_notes
+            "SELECT id, company_name, shop_name, doc_gov_id, doc_bir, doc_dti, doc_bank,
+                    status, submitted_at, admin_notes, role
              FROM seller_applications 
              WHERE email = ? 
              ORDER BY submitted_at DESC 
@@ -174,6 +188,24 @@ if ($method === 'GET') {
         );
         $stmt->execute([$user['email']]);
         $application = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Safely add doc_cert if the column exists
+        if ($application) {
+            $hasCert = (bool) $pdo->query(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE()
+                   AND TABLE_NAME   = 'seller_applications'
+                   AND COLUMN_NAME  = 'doc_cert'"
+            )->fetchColumn();
+            if ($hasCert) {
+                $stmt2 = $pdo->prepare("SELECT doc_cert FROM seller_applications WHERE id = ?");
+                $stmt2->execute([$application['id']]);
+                $certRow = $stmt2->fetch(PDO::FETCH_ASSOC);
+                $application['doc_cert'] = $certRow['doc_cert'] ?? null;
+            } else {
+                $application['doc_cert'] = null;
+            }
+        }
 
         echo json_encode([
             'success' => true,
@@ -295,9 +327,9 @@ if ($method === 'POST') {
         // Send notification to the approved user (new seller account)
         if ($newUserId) {
             require_once __DIR__ . '/notification_helper.php';
-            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : 'Supplier';
+            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : ($app['role'] === 'phone_technician' ? 'Phone Technician' : 'Supplier');
             $notifTitle = 'Application Approved! 🎉';
-            $notifBody = "Congratulations! Your {$roleLabel} application has been approved. You can now log in and start using your seller account.";
+            $notifBody = "Congratulations! Your {$roleLabel} application has been approved. You can now log in and start using your account.";
             if ($notes) {
                 $notifBody .= " Admin note: {$notes}";
             }
@@ -308,18 +340,18 @@ if ($method === 'POST') {
         $customerId = (int)($app['user_id'] ?? 0);
         if ($customerId && $customerId !== $newUserId) {
             require_once __DIR__ . '/notification_helper.php';
-            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : 'Supplier';
+            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : ($app['role'] === 'phone_technician' ? 'Phone Technician' : 'Supplier');
             sendNotification(
                 $customerId,
                 'system',
-                'Seller Application Approved! 🎉',
-                "Your {$roleLabel} application has been approved! Log in with your seller email ({$app['email']}) to access your new seller dashboard."
+                'Application Approved! 🎉',
+                "Your {$roleLabel} application has been approved! Log in with your registered email ({$app['email']}) to access your new account."
             );
         }
 
         // Send approval email
         require_once __DIR__ . '/mailer.php';
-        $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : 'Supplier';
+        $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : ($app['role'] === 'phone_technician' ? 'Phone Technician' : 'Supplier');
         $subject = "Application Approved — Fix&Go {$roleLabel}";
         $emailBody = "
 <h2>🎉 Congratulations! Your Application Has Been Approved</h2>
@@ -327,13 +359,12 @@ if ($method === 'POST') {
 <p>We're excited to inform you that your <strong>{$roleLabel}</strong> application has been approved!</p>
 <p><strong>What's Next?</strong></p>
 <ol>
-  <li>Log in to your seller account using your registered email: <strong>{$app['email']}</strong></li>
-  <li>Complete your shop profile and upload your logo</li>
-  <li>Start adding products to your catalog</li>
-  <li>Begin receiving orders from customers</li>
+  <li>Log in to your account using your registered email: <strong>{$app['email']}</strong></li>
+  <li>Complete your profile</li>
+  <li>Start using your new account</li>
 </ol>
 " . ($notes ? "<p><strong>Admin Note:</strong> {$notes}</p>" : '') . "
-<p>Welcome to the Fix&Go seller community!</p>
+<p>Welcome to Fix&Go!</p>
 ";
         sendEmail($app['email'], $app['first_name'] . ' ' . $app['last_name'], $subject, $emailBody);
         
@@ -363,15 +394,15 @@ if ($method === 'POST') {
         // Send notification to the customer who applied BEFORE deleting the seller account
         if ($customerId) {
             require_once __DIR__ . '/notification_helper.php';
-            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : 'Supplier';
+            $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : ($app['role'] === 'phone_technician' ? 'Phone Technician' : 'Supplier');
             $notifTitle = 'Application Rejected';
-            $notifBody = "Unfortunately, your {$roleLabel} application has been rejected. Reason: {$notes}. You can reapply with the same email after reviewing the requirements.";
+            $notifBody = "Unfortunately, your {$roleLabel} application has been rejected. Reason: {$notes}. You can reapply after reviewing the requirements.";
             sendNotification($customerId, 'system', $notifTitle, $notifBody);
         }
 
         // Send rejection email BEFORE deleting the account
         require_once __DIR__ . '/mailer.php';
-        $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : 'Supplier';
+        $roleLabel = $app['role'] === 'owner' ? 'Shop Owner' : ($app['role'] === 'phone_technician' ? 'Phone Technician' : 'Supplier');
         $subject = "Application Rejected — Fix&Go {$roleLabel}";
         $emailBody = "
 <h2>Application Rejected</h2>

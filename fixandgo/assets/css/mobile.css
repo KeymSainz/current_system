@@ -1,0 +1,340 @@
+/**
+ * Fix&Go — Mobile / PWA Styles
+ * Loaded on all pages. Adds mobile-first improvements on top of existing CSS.
+ */
+
+/* ── Safe area insets (notch phones) ─────────────────────────── */
+:root {
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  /* Bottom nav height — used to pad content above it on mobile */
+  --bottom-nav-h: 0px;
+}
+
+/* ── Smooth scrolling & tap highlights ───────────────────────── */
+html { scroll-behavior: smooth; }
+* { -webkit-tap-highlight-color: rgba(230,168,0,0.15); }
+
+/* ── Touch-friendly tap targets ─────────────────────────────── */
+button, a, [role="button"], label[onclick], .pm-card,
+.sidebar-nav a, .filter-tab, .quick-card {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+/* Reset for flex containers that already manage layout */
+.sidebar-nav a { display: flex; }
+
+/* ── Prevent text size adjust on orientation change ──────────── */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ── Improve table scrolling on mobile ───────────────────────── */
+.table-responsive, [style*="overflow-x:auto"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Modals — full-screen on very small phones ───────────────── */
+@media (max-width: 480px) {
+  [style*="max-width:540px"], [style*="max-width:560px"],
+  [style*="max-width:500px"], [style*="max-width:510px"],
+  [style*="max-width:520px"], [style*="max-width:480px"] {
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 16px 16px 0 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    max-height: 92vh !important;
+  }
+  /* Overlay alignment for bottom-sheet style modals */
+  [id$="Modal"], [id$="modal"], #completeProofModal,
+  #statusUpdateModal, #paymentModal, #dashPayModal,
+  #reviewModal, #bookingDetailModal {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+}
+
+/* ── Navbar — taller touch target on mobile ─────────────────── */
+@media (max-width: 768px) {
+  .fg-navbar {
+    padding: 0.6rem 1rem;
+    min-height: 56px;
+  }
+  .fg-navbar img { height: 38px !important; }
+}
+
+/* ── Inputs & selects — larger on mobile ────────────────────── */
+@media (max-width: 768px) {
+  input[type="text"], input[type="number"], input[type="email"],
+  input[type="password"], input[type="tel"], select, textarea {
+    font-size: 16px !important; /* prevents iOS zoom-on-focus */
+    min-height: 44px;
+  }
+  textarea { min-height: auto; }
+}
+
+/* ── Stats grids — 2 col on phones ──────────────────────────── */
+@media (max-width: 480px) {
+  .stats-row, .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ── Bottom Navigation Bar ───────────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: var(--fg-card-bg, #1a1d2e);
+  border-top: 1px solid var(--fg-border, rgba(255,255,255,0.08));
+  padding: 0.4rem 0 calc(0.4rem + var(--safe-bottom));
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.25);
+}
+.mobile-bottom-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+.mobile-bottom-nav li a,
+.mobile-bottom-nav li button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.3rem 0.75rem;
+  color: var(--fg-muted, #94a3b8);
+  text-decoration: none;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: color 0.2s;
+  min-height: unset;
+}
+.mobile-bottom-nav li a i,
+.mobile-bottom-nav li button i {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.mobile-bottom-nav li a.active,
+.mobile-bottom-nav li a:hover,
+.mobile-bottom-nav li button:hover {
+  color: var(--fg-primary, #e6a800);
+}
+.mobile-bottom-nav li a.active i {
+  color: var(--fg-primary, #e6a800);
+}
+.mobile-bottom-nav .nav-badge {
+  position: absolute;
+  top: 0px;
+  right: -2px;
+  background: #dc3545;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 0.1rem 0.3rem;
+  border-radius: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+.mobile-bottom-nav li { position: relative; }
+
+/* Show bottom nav only on mobile — sidebar STAYS visible */
+@media (max-width: 768px) {
+  .mobile-bottom-nav { display: block; }
+  :root { --bottom-nav-h: 64px; }
+  /* Content gets bottom padding so bottom nav doesn't cover it */
+  .tc-main, .cu-main, .supplier-main {
+    padding-bottom: calc(1rem + var(--bottom-nav-h)) !important;
+  }
+}
+
+/* ── PWA standalone mode adjustments ────────────────────────── */
+@media (display-mode: standalone) {
+  /* Add top padding for status bar on standalone */
+  .fg-navbar {
+    padding-top: calc(0.6rem + var(--safe-top));
+  }
+  /* Slightly larger touch areas in standalone mode */
+  .sidebar-nav a, button, .filter-tab {
+    min-height: 48px;
+  }
+}
+
+/* ── Swipeable cards on mobile ───────────────────────────────── */
+@media (max-width: 768px) {
+  .mini-table { font-size: 0.78rem; }
+  .mini-table th, .mini-table td { padding: 0.5rem 0.65rem; }
+  /* Payment method cards — 3 per row on mobile */
+  #paymentMethodGrid,
+  [style*="grid-template-columns:repeat(5"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  /* Parts replaced in modal — fewer columns */
+  #partsListWrap { gap: 0.35rem !important; }
+  /* Filter bars — vertical stack */
+  .filter-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .filter-bar input,
+  .filter-bar select { width: 100% !important; }
+}
+
+/* ── Splash screen loading indicator ─────────────────────────── */
+#pwa-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #0f1117;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  transition: opacity 0.4s;
+}
+#pwa-splash .splash-logo {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #e6a800;
+  letter-spacing: -0.5px;
+}
+#pwa-splash .splash-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(230,168,0,0.2);
+  border-top-color: #e6a800;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ════════════════════════════════════════════════════════════
+   Surface Pro 7 — 912×608 CSS viewport (landscape)
+   & similar tablet-laptop hybrids (769px – 1024px)
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* ── Navbar ─────────────────────────────────────────────── */
+  .fg-navbar {
+    padding: 0.55rem 1.5rem !important;
+    min-height: 60px !important;
+  }
+  .fg-navbar .brand-logo-img,
+  .fg-navbar img[alt*="Fix"] { height: 42px !important; }
+
+  /* Hide username label to save space */
+  #navUserName { display: none !important; }
+
+  /* ── Sidebar layouts — keep sidebar visible but narrower ── */
+  .tc-sidebar,
+  .cu-sidebar,
+  .supplier-sidebar {
+    width: 200px !important;
+    font-size: 0.83rem !important;
+  }
+  .tc-sidebar .sidebar-label,
+  .cu-sidebar .sidebar-section-label,
+  .supplier-sidebar .sidebar-label {
+    font-size: 0.63rem !important;
+    letter-spacing: 0.8px !important;
+  }
+  .tc-sidebar .sidebar-nav a,
+  .cu-sidebar .sidebar-nav li a,
+  .supplier-sidebar .sidebar-nav a {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* ── Main content area ──────────────────────────────────── */
+  .tc-main,
+  .cu-main,
+  .supplier-main {
+    padding: 1.5rem !important;
+  }
+
+  /* ── Stats grids — 2 or 3 col ────────────────────────────── */
+  .stats-row,
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.85rem !important;
+  }
+
+  /* ── Tables — slightly smaller text ─────────────────────── */
+  .mini-table { font-size: 0.80rem; }
+  .mini-table th,
+  .mini-table td { padding: 0.55rem 0.8rem; }
+
+  /* ── Section cards ───────────────────────────────────────── */
+  .section-card { border-radius: 12px !important; }
+  .section-head { padding: 0.85rem 1rem !important; }
+
+  /* ── Filter bar — keep horizontal ───────────────────────── */
+  .filter-bar {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+  .filter-input { min-width: 160px !important; }
+
+  /* ── Payment method cards — 5 per row ───────────────────── */
+  #paymentMethodGrid,
+  [style*="grid-template-columns:repeat(5"] {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+
+  /* ── Modals — medium width ───────────────────────────────── */
+  [style*="max-width:540px"],
+  [style*="max-width:560px"],
+  [style*="max-width:500px"],
+  [style*="max-width:510px"] {
+    max-width: 90vw !important;
+    margin: auto !important;
+    border-radius: 18px !important;
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+  }
+
+  /* ── Hide mobile bottom nav on Surface Pro ───────────────── */
+  .mobile-bottom-nav,
+  #shopBottomNav { display: none !important; }
+
+  /* ── Restore body padding (no bottom nav) ─────────────────── */
+  body { padding-bottom: 0 !important; }
+
+  /* ── Auth pages ─────────────────────────────────────────── */
+  .auth-bg { padding: 2rem 3rem !important; }
+  .auth-card { max-width: 460px !important; }
+}
+
+/* Surface Pro 7 portrait mode — 608px wide */
+@media (min-width: 601px) and (max-width: 768px) and (min-height: 800px) {
+
+  /* Keep sidebar toggle (hamburger) but make it slightly larger */
+  .sidebar-toggle { display: flex !important; }
+
+  /* Stats — 2 col */
+  .stats-row,
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tables — allow horizontal scroll */
+  .data-table,
+  .mini-table { font-size: 0.8rem !important; }
+}

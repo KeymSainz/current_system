@@ -30,12 +30,11 @@ try {
     }
 
     /**
-     * Fetch products set to display by the sales person.
-     * These are supplier_products with status='sent_to_sales_person' AND is_displayed=1.
-     * Falls back to owner_received products if none are displayed.
+     * Fetch products available in the shop.
+     * Shows: sent_to_sales_person (displayed by sales person) + owner_received (supplier stock)
+     * Ordered by category then name.
      */
     function fetchDisplayedProducts(PDO $pdo): array {
-        // Primary: products the sales person chose to display
         $stmt = $pdo->query(
             "SELECT
                 sp.id,
@@ -46,37 +45,37 @@ try {
                 sp.srp,
                 sp.image_path,
                 sp.notes,
-                'sales_display' AS source
+                sp.supplier_id,
+                COALESCE(u.shop_name, CONCAT(u.first_name,' ',u.last_name)) AS seller_name,
+                CONCAT(u.first_name,' ',u.last_name) AS supplier_name,
+                CASE
+                    WHEN sp.status = 'sent_to_sales_person' THEN 'sales_display'
+                    ELSE 'supplier_stock'
+                END AS source,
+                COALESCE(pr.avg_rating, 0) AS avg_rating,
+                COALESCE(pr.review_count, 0) AS review_count
              FROM supplier_products sp
-             WHERE sp.status = 'sent_to_sales_person'
-               AND sp.is_displayed = 1
-               AND sp.qty > 0
+             JOIN users u ON u.id = sp.supplier_id
+             LEFT JOIN (
+                SELECT product_id,
+                       ROUND(AVG(rating), 1) AS avg_rating,
+                       COUNT(*) AS review_count
+                FROM product_reviews
+                GROUP BY product_id
+             ) pr ON pr.product_id = sp.id
+             WHERE (
+                     (sp.status IN ('sent_to_sales_person','owner_received') AND sp.qty > 0)
+                     OR
+                     (sp.is_displayed = 1 AND sp.holder_type = 'sales_person' AND sp.qty > 0)
+                   )
              ORDER BY sp.category ASC, sp.item_description ASC"
         );
         $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Fallback: owner_received products if sales person hasn't set any
-        if (empty($products)) {
-            $stmt = $pdo->query(
-                "SELECT
-                    sp.id,
-                    sp.category,
-                    sp.brand,
-                    sp.item_description,
-                    sp.qty,
-                    sp.srp,
-                    sp.image_path,
-                    sp.notes,
-                    'owner_stock' AS source
-                 FROM supplier_products sp
-                 WHERE sp.status = 'owner_received'
-                 ORDER BY sp.category ASC, sp.item_description ASC"
-            );
-            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
-
         foreach ($products as &$p) {
-            $p['image_path'] = resolveImagePath($p['image_path']);
+            $p['image_path']   = resolveImagePath($p['image_path']);
+            $p['avg_rating']   = (float)$p['avg_rating'];
+            $p['review_count'] = (int)$p['review_count'];
         }
         unset($p);
 

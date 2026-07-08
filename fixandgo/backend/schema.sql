@@ -1,508 +1,766 @@
 -- ============================================================
 --  Fix&Go — Complete Database Schema
---  Engine : InnoDB | Charset : utf8mb4 (full Unicode + emoji)
---  Run    : mysql -u root -p < schema.sql
---           OR import via phpMyAdmin → Import tab
+--  Import this file ONCE into phpMyAdmin to create all tables.
+--  Database: if0_42315458_fixandgo  (InfinityFree)
+--  Charset:  utf8mb4 / utf8mb4_unicode_ci
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS fixandgo
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+SET FOREIGN_KEY_CHECKS = 0;
+SET NAMES utf8mb4;
 
-USE fixandgo;
-
--- ============================================================
---  1. USERS
---     Stores all account types: customer, sales_person, supplier,
---     supervisor, owner, phone_technician.
---     password_hash is NULL for Google-only accounts.
--- ============================================================
-CREATE TABLE IF NOT EXISTS users (
-  id            INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-  first_name    VARCHAR(50)     NOT NULL,
-  last_name     VARCHAR(50)     NOT NULL,
-  email         VARCHAR(255)    NOT NULL,
-  phone         VARCHAR(20)     NULL,
-  password_hash VARCHAR(255)    NULL,                          -- NULL = OAuth-only
-  role          ENUM('customer','sales_person','supplier','supervisor','owner','phone_technician')
-                                NOT NULL DEFAULT 'customer',
-  provider      ENUM('local','google') NOT NULL DEFAULT 'local',
-  provider_id   VARCHAR(255)    NULL,                          -- Google sub ID
-  avatar_url    VARCHAR(500)    NULL,
-  is_verified   TINYINT(1)      NOT NULL DEFAULT 0,
-  is_active     TINYINT(1)      NOT NULL DEFAULT 1,            -- soft-disable account
-  created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                         ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE  KEY uq_email          (email),
-  INDEX        idx_role          (role),
-  INDEX        idx_provider_id   (provider_id)
+-- ── 1. users ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `users` (
+  `id`                  INT UNSIGNED      NOT NULL AUTO_INCREMENT,
+  `first_name`          VARCHAR(80)       NOT NULL,
+  `last_name`           VARCHAR(80)       NOT NULL,
+  `email`               VARCHAR(191)      NOT NULL,
+  `password_hash`       VARCHAR(255)      NULL,
+  `role`                ENUM('admin','customer','supplier','owner','sales_person','supervisor','phone_technician') NOT NULL DEFAULT 'customer',
+  `provider`            VARCHAR(30)       NULL DEFAULT NULL COMMENT 'google, etc.',
+  `provider_id`         VARCHAR(191)      NULL DEFAULT NULL,
+  `is_verified`         TINYINT(1)        NOT NULL DEFAULT 0,
+  `is_active`           TINYINT(1)        NOT NULL DEFAULT 1,
+  `is_banned`           TINYINT(1)        NOT NULL DEFAULT 0,
+  `banned_reason`       VARCHAR(500)      NULL,
+  `banned_at`           DATETIME          NULL,
+  `application_status`  ENUM('pending','approved','rejected') NULL,
+  `application_notes`   TEXT              NULL,
+  `reviewed_by`         INT UNSIGNED      NULL,
+  `reviewed_at`         DATETIME          NULL,
+  `login_attempts`      TINYINT UNSIGNED  NOT NULL DEFAULT 0,
+  `locked_until`        DATETIME          NULL,
+  `last_login_at`       DATETIME          NULL,
+  `last_logout_at`      DATETIME          NULL,
+  `phone`               VARCHAR(30)       NULL,
+  `bio`                 TEXT              NULL,
+  `description`         TEXT              NULL,
+  `specializations`     TEXT              NULL,
+  `shop_name`           VARCHAR(191)      NULL,
+  `shop_image`          VARCHAR(500)      NULL,
+  `profile_image`       VARCHAR(500)      NULL,
+  `avatar_url`          VARCHAR(500)      NULL,
+  `address_line`        VARCHAR(255)      NULL,
+  `barangay`            VARCHAR(120)      NULL,
+  `city`                VARCHAR(120)      NULL,
+  `province`            VARCHAR(120)      NULL,
+  `region`              VARCHAR(120)      NULL,
+  `zip_code`            VARCHAR(10)       NULL,
+  `address_verified`    TINYINT(1)        NOT NULL DEFAULT 0,
+  `gender`              ENUM('male','female','other') NULL,
+  `date_of_birth`       DATE              NULL,
+  `status`              VARCHAR(30)       NULL DEFAULT 'active',
+  `created_at`          DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`          DATETIME          NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_email` (`email`),
+  KEY `idx_role` (`role`),
+  KEY `idx_is_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ── ALTER: add phone_technician to role ENUM if table already exists ──────
--- Run this if you already created the users table without phone_technician:
--- ALTER TABLE users
---   MODIFY COLUMN role
---     ENUM('customer','sales_person','supplier','supervisor','owner','phone_technician')
---     NOT NULL DEFAULT 'customer';
+-- ── 2. otp_tokens ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `otp_tokens` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `otp_hash`   VARCHAR(255) NOT NULL,
+  `purpose`    ENUM('verify','login','reset') NOT NULL DEFAULT 'verify',
+  `expires_at` DATETIME     NOT NULL,
+  `attempts`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_purpose` (`user_id`, `purpose`),
+  CONSTRAINT `fk_otp_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================================
---  2. OTP TOKENS
---     6-digit codes for email verification & password reset.
---     Stored as bcrypt hashes — never plaintext.
--- ============================================================
-CREATE TABLE IF NOT EXISTS otp_tokens (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id    INT UNSIGNED NOT NULL,
-  otp_hash   VARCHAR(255) NOT NULL,
-  purpose    ENUM('verify','reset','login') NOT NULL DEFAULT 'verify',
-  expires_at DATETIME     NOT NULL,
-  attempts   TINYINT      NOT NULL DEFAULT 0,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+-- ── 3. rate_limits ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `rate_limits` (
+  `id`           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `identifier`   VARCHAR(100)  NOT NULL COMMENT 'IP address or user_id',
+  `action`       VARCHAR(50)   NOT NULL COMMENT 'login, register, otp, forgot_password',
+  `attempted_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ident_action` (`identifier`, `action`, `attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-  PRIMARY KEY (id),
-  INDEX idx_user_purpose (user_id, purpose),
-  CONSTRAINT fk_otp_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+-- ── 4. remember_tokens ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `remember_tokens` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `token_hash` VARCHAR(255) NOT NULL,
+  `expires_at` DATETIME     NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_token` (`token_hash`),
+  CONSTRAINT `fk_rt_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 5. user_activity_logs ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `user_activity_logs` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `action`     ENUM('login','logout','login_failed','session_expired') NOT NULL,
+  `ip_address` VARCHAR(45)  NULL,
+  `user_agent` VARCHAR(512) NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  CONSTRAINT `fk_ual_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 6. seller_applications ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `seller_applications` (
+  `id`               INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `user_id`          INT UNSIGNED  NOT NULL,
+  `role`             ENUM('supplier','owner','phone_technician') NOT NULL DEFAULT 'supplier',
+  `first_name`       VARCHAR(80)   NULL,
+  `last_name`        VARCHAR(80)   NULL,
+  `middle_name`      VARCHAR(80)   NULL,
+  `suffix`           VARCHAR(20)   NULL,
+  `email`            VARCHAR(191)  NULL,
+  `phone`            VARCHAR(30)   NULL,
+  `company_name`     VARCHAR(191)  NULL,
+  `shop_name`        VARCHAR(191)  NULL,
+  `shop_address`     TEXT          NULL,
+  `address_lat`      DECIMAL(10,7) NULL,
+  `address_lng`      DECIMAL(10,7) NULL,
+  `specializations`  TEXT          NULL,
+  `experience_yrs`   TINYINT UNSIGNED NULL DEFAULT 0,
+  `entity_type`      ENUM('sole_proprietorship','corporation','one_person_corp') NULL,
+  `business_name`    VARCHAR(191)  NULL,
+  `general_location` VARCHAR(191)  NULL,
+  `zip_code`         VARCHAR(10)   NULL,
+  `business_email`   VARCHAR(191)  NULL,
+  `doc_gov_id`       VARCHAR(500)  NULL,
+  `doc_bir`          VARCHAR(500)  NULL,
+  `doc_dti`          VARCHAR(500)  NULL,
+  `doc_bank`         VARCHAR(500)  NULL,
+  `doc_cert`         VARCHAR(500)  NULL,
+  `status`           ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `overall_status`   VARCHAR(50)   NULL,
+  `admin_notes`      TEXT          NULL,
+  `reviewed_by`      INT UNSIGNED  NULL,
+  `reviewed_at`      DATETIME      NULL,
+  `submitted_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id`  (`user_id`),
+  KEY `idx_status`   (`status`),
+  CONSTRAINT `fk_sa_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 7. document_approvals ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `document_approvals` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `application_id`   INT UNSIGNED NOT NULL,
+  `document_type`    ENUM('gov_id','bir','dti','bank','cert') NOT NULL,
+  `status`           ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `rejection_reason` TEXT         NULL,
+  `reviewed_by`      INT UNSIGNED NULL,
+  `reviewed_at`      DATETIME     NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_app_doc` (`application_id`, `document_type`),
+  CONSTRAINT `fk_da_app` FOREIGN KEY (`application_id`) REFERENCES `seller_applications`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 8. supplier_products ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `supplier_products` (
+  `id`                INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `supplier_id`       INT UNSIGNED  NOT NULL,
+  `category`          VARCHAR(100)  NOT NULL,
+  `brand`             VARCHAR(100)  NULL,
+  `item_description`  TEXT          NOT NULL,
+  `qty`               INT UNSIGNED  NOT NULL DEFAULT 0,
+  `srp`               DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `image_path`        VARCHAR(500)  NULL,
+  `status`            ENUM('draft','verified','sent_to_owner','owner_received','sent_to_supervisor','sent_to_sales_person','with_tech','rejected') NOT NULL DEFAULT 'draft',
+  `notes`             TEXT          NULL,
+  `current_holder_id` INT UNSIGNED  NULL,
+  `holder_type`       ENUM('supplier','owner','supervisor','sales_person','phone_technician') NULL,
+  `is_displayed`      TINYINT(1)    NOT NULL DEFAULT 0,
+  `sent_at`           DATETIME      NULL,
+  `verified_at`       DATETIME      NULL,
+  `created_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_supplier`    (`supplier_id`),
+  KEY `idx_holder`      (`current_holder_id`),
+  KEY `idx_status`      (`status`),
+  KEY `idx_is_displayed`(`is_displayed`),
+  CONSTRAINT `fk_sp_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 9. product_submissions ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_submissions` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `supplier_id`      INT UNSIGNED NOT NULL,
+  `owner_id`         INT UNSIGNED NOT NULL,
+  `status`           ENUM('pending','acknowledged','rejected') NOT NULL DEFAULT 'pending',
+  `acknowledged_at`  DATETIME     NULL,
+  `submitted_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_supplier` (`supplier_id`),
+  KEY `idx_owner`    (`owner_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 10. submission_items ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `submission_items` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `submission_id` INT UNSIGNED NOT NULL,
+  `product_id`    INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_submission` (`submission_id`),
+  CONSTRAINT `fk_si_sub`  FOREIGN KEY (`submission_id`) REFERENCES `product_submissions`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_si_prod` FOREIGN KEY (`product_id`)    REFERENCES `supplier_products`(`id`)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 11. product_transfers ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_transfers` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id`    INT UNSIGNED NOT NULL,
+  `from_user_id`  INT UNSIGNED NOT NULL,
+  `to_user_id`    INT UNSIGNED NOT NULL,
+  `transfer_type` ENUM('owner_to_supervisor','supervisor_to_sales') NOT NULL,
+  `quantity`      INT UNSIGNED NOT NULL DEFAULT 1,
+  `status`        ENUM('pending','accepted','rejected') NOT NULL DEFAULT 'pending',
+  `notes`         TEXT         NULL,
+  `transferred_at`DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `responded_at`  DATETIME     NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_product`   (`product_id`),
+  KEY `idx_from_user` (`from_user_id`),
+  KEY `idx_to_user`   (`to_user_id`),
+  CONSTRAINT `fk_pt_product` FOREIGN KEY (`product_id`) REFERENCES `supplier_products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 12. product_transfer_history ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_transfer_history` (
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id`   INT UNSIGNED NOT NULL,
+  `from_user_id` INT UNSIGNED NULL,
+  `to_user_id`   INT UNSIGNED NULL,
+  `action`       VARCHAR(60)  NOT NULL,
+  `quantity`     INT UNSIGNED NOT NULL DEFAULT 1,
+  `notes`        TEXT         NULL,
+  `created_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_product` (`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 13. owner_payments ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `owner_payments` (
+  `id`                  INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `owner_id`            INT UNSIGNED  NOT NULL,
+  `reference`           VARCHAR(100)  NOT NULL,
+  `paymongo_id`         VARCHAR(100)  NULL,
+  `amount`              DECIMAL(10,2) NOT NULL,
+  `currency`            CHAR(3)       NOT NULL DEFAULT 'PHP',
+  `status`              ENUM('pending','paid','failed','cancelled') NOT NULL DEFAULT 'pending',
+  `checkout_url`        VARCHAR(1000) NULL,
+  `product_ids`         JSON          NULL,
+  `purchase_quantities` JSON          NULL,
+  `paid_at`             DATETIME      NULL,
+  `created_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_reference` (`reference`),
+  KEY `idx_owner` (`owner_id`),
+  CONSTRAINT `fk_op_owner` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 14. owner_inventory ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `owner_inventory` (
+  `id`                  INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `owner_id`            INT UNSIGNED  NOT NULL,
+  `supplier_id`         INT UNSIGNED  NULL,
+  `supplier_product_id` INT UNSIGNED  NULL,
+  `payment_id`          INT UNSIGNED  NULL,
+  `category`            VARCHAR(100)  NULL,
+  `brand`               VARCHAR(100)  NULL,
+  `item_description`    TEXT          NULL,
+  `qty`                 INT UNSIGNED  NOT NULL DEFAULT 0,
+  `unit_price`          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `total_price`         DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `image_path`          VARCHAR(500)  NULL,
+  `notes`               TEXT          NULL,
+  `purchased_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_owner`   (`owner_id`),
+  KEY `idx_payment` (`payment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 15. customer_orders ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `customer_orders` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `customer_id`    INT UNSIGNED  NOT NULL,
+  `product_id`     INT UNSIGNED  NOT NULL,
+  `quantity`       INT UNSIGNED  NOT NULL DEFAULT 1,
+  `unit_price`     DECIMAL(10,2) NOT NULL,
+  `total_amount`   DECIMAL(10,2) NOT NULL,
+  `status`         ENUM('pending','processing','completed','cancelled') NOT NULL DEFAULT 'pending',
+  `payment_method` ENUM('cod','gcash','card','online','paymongo') NOT NULL DEFAULT 'cod',
+  `notes`          TEXT          NULL,
+  `cancel_reason`  VARCHAR(255)  NULL,
+  `cancel_notes`   TEXT          NULL,
+  `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer`  (`customer_id`),
+  KEY `idx_product`   (`product_id`),
+  KEY `idx_status`    (`status`),
+  CONSTRAINT `fk_co_customer` FOREIGN KEY (`customer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_co_product`  FOREIGN KEY (`product_id`)  REFERENCES `supplier_products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 16. product_reviews ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_reviews` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id`  INT UNSIGNED NOT NULL,
+  `customer_id` INT UNSIGNED NOT NULL,
+  `order_id`    INT UNSIGNED NULL,
+  `rating`      TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  `review_text` TEXT         NULL,
+  `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_customer_product` (`customer_id`, `product_id`),
+  KEY `idx_product` (`product_id`),
+  CONSTRAINT `fk_pr_product`  FOREIGN KEY (`product_id`)  REFERENCES `supplier_products`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_pr_customer` FOREIGN KEY (`customer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 17. bookings ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `bookings` (
+  `id`                       INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `customer_id`              INT UNSIGNED  NOT NULL,
+  `technician_id`            INT UNSIGNED  NULL,
+  `contact_number`           VARCHAR(30)   NULL,
+  `address`                  TEXT          NULL,
+  `device_name`              VARCHAR(191)  NULL,
+  `device_model`             VARCHAR(191)  NULL,
+  `problem_desc`             TEXT          NULL,
+  `fault_description`        TEXT          NULL,
+  `issue_description`        TEXT          NULL,
+  `phone_history`            TEXT          NULL,
+  `expected_fix`             TEXT          NULL,
+  `phone_photo`              VARCHAR(500)  NULL,
+  `service_type`             ENUM('home_service','shop_fix') NOT NULL DEFAULT 'shop_fix',
+  `scheduled_at`             DATETIME      NULL,
+  `status`                   ENUM('pending','confirmed','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending',
+  `technician_notes`         TEXT          NULL,
+  `notes`                    TEXT          NULL,
+  `total_price`              DECIMAL(10,2) NULL,
+  `total_amount`             DECIMAL(10,2) NULL,
+  -- Technician-side payment (set by technician)
+  `payment_method`           ENUM('cash','bank_transfer','gcash','maya','other') NULL,
+  `repair_fee`               DECIMAL(10,2) NULL COMMENT 'Total repair fee (labor+parts)',
+  `labor_fee`                DECIMAL(10,2) NULL COMMENT 'Labor / service fee',
+  `parts_fee`                DECIMAL(10,2) NULL COMMENT 'Parts / replacement cost',
+  `payment_note`             VARCHAR(255)  NULL COMMENT 'Account or reference',
+  `payment_status`           ENUM('unpaid','paid','pending_collection') NULL,
+  `receipt_path`             VARCHAR(500)  NULL COMMENT 'Receipt uploaded by technician',
+  `price_photo_path`         VARCHAR(500)  NULL COMMENT 'Product/parts price photo',
+  -- Customer-side payment (set by customer)
+  `customer_payment_method`  ENUM('cash','gcash','maya','bank_transfer','card','online','other') NULL,
+  `customer_payment_status`  ENUM('pending','paid') NOT NULL DEFAULT 'pending',
+  `customer_payment_note`    VARCHAR(255)  NULL,
+  `customer_paid_at`         DATETIME      NULL,
+  `parts_replaced`           TEXT          NULL COMMENT 'JSON array of parts replaced',
+  `created_at`               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_customer`               (`customer_id`),
+  KEY `idx_technician`             (`technician_id`),
+  KEY `idx_status`                 (`status`),
+  KEY `idx_payment_method`         (`payment_method`),
+  KEY `idx_payment_status`         (`payment_status`),
+  KEY `idx_customer_payment_status`(`customer_payment_status`),
+  CONSTRAINT `fk_bk_customer`    FOREIGN KEY (`customer_id`)   REFERENCES `users`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_bk_technician`  FOREIGN KEY (`technician_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 18. repair_payments ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `repair_payments` (
+  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `booking_id`    INT UNSIGNED  NOT NULL,
+  `customer_id`   INT UNSIGNED  NOT NULL,
+  `technician_id` INT UNSIGNED  NULL,
+  `reference`     VARCHAR(100)  NOT NULL,
+  `paymongo_id`   VARCHAR(100)  NULL,
+  `amount`        DECIMAL(10,2) NOT NULL,
+  `currency`      CHAR(3)       NOT NULL DEFAULT 'PHP',
+  `status`        ENUM('pending','paid','failed','cancelled') NOT NULL DEFAULT 'pending',
+  `checkout_url`  VARCHAR(1000) NULL,
+  `paid_at`       DATETIME      NULL,
+  `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_reference` (`reference`),
+  KEY `idx_booking`   (`booking_id`),
+  KEY `idx_customer`  (`customer_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 19. technician_profiles ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_profiles` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`          INT UNSIGNED NOT NULL,
+  `bio`              TEXT         NULL,
+  `specialization`   TEXT         NULL,
+  `experience_years` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `description`      TEXT         NULL,
+  `availability`     ENUM('available','busy','unavailable') NOT NULL DEFAULT 'available',
+  `rating_avg`       DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+  `rating_count`     INT UNSIGNED NOT NULL DEFAULT 0,
+  `certifications`   TEXT         NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user` (`user_id`),
+  CONSTRAINT `fk_tp_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 20. technician_credentials ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_credentials` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `technician_id` INT UNSIGNED NOT NULL,
+  `doc_type`      ENUM('gov_id','bir','dti','tech_cert','tesda','nstp','bank','skill_cert','shop_image','work_video','custom') NOT NULL,
+  `label`         VARCHAR(120) NULL,
+  `file_url`      VARCHAR(500) NOT NULL,
+  `file_name`     VARCHAR(255) NULL,
+  `file_ext`      VARCHAR(10)  NULL,
+  `is_image`      TINYINT(1)   NOT NULL DEFAULT 0,
+  `is_video`      TINYINT(1)   NOT NULL DEFAULT 0,
+  `display_order` SMALLINT     NOT NULL DEFAULT 0,
+  `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_tech` (`technician_id`),
+  CONSTRAINT `fk_tc_tech` FOREIGN KEY (`technician_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 21. technician_reviews ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_reviews` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `booking_id`    INT UNSIGNED NOT NULL,
+  `technician_id` INT UNSIGNED NOT NULL,
+  `customer_id`   INT UNSIGNED NOT NULL,
+  `rating`        TINYINT UNSIGNED NOT NULL DEFAULT 5,
+  `comment`       TEXT         NULL,
+  `media_1_url`   VARCHAR(500) NULL,
+  `media_1_type`  ENUM('image','video') NULL,
+  `media_2_url`   VARCHAR(500) NULL,
+  `media_2_type`  ENUM('image','video') NULL,
+  `media_3_url`   VARCHAR(500) NULL,
+  `media_3_type`  ENUM('image','video') NULL,
+  `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_booking` (`booking_id`),
+  KEY `idx_technician` (`technician_id`),
+  KEY `idx_customer`   (`customer_id`),
+  CONSTRAINT `fk_tr_booking`    FOREIGN KEY (`booking_id`)    REFERENCES `bookings`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_tr_technician` FOREIGN KEY (`technician_id`) REFERENCES `users`(`id`)   ON DELETE CASCADE,
+  CONSTRAINT `fk_tr_customer`   FOREIGN KEY (`customer_id`)   REFERENCES `users`(`id`)   ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 22. sales_products ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `sales_products` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `sales_person_id`INT UNSIGNED  NOT NULL,
+  `name`           VARCHAR(191)  NOT NULL,
+  `description`    TEXT          NULL,
+  `category`       VARCHAR(100)  NULL,
+  `price`          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `stock`          INT UNSIGNED  NOT NULL DEFAULT 0,
+  `image_path`     VARCHAR(500)  NULL,
+  `is_active`      TINYINT(1)    NOT NULL DEFAULT 1,
+  `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_sales_person` (`sales_person_id`),
+  CONSTRAINT `fk_salesp_user` FOREIGN KEY (`sales_person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 23. supply_requests ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `supply_requests` (
+  `id`                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `sales_person_id`    INT UNSIGNED NOT NULL,
+  `product_name`       VARCHAR(191) NOT NULL,
+  `category`           VARCHAR(100) NULL,
+  `quantity_requested` INT UNSIGNED NOT NULL DEFAULT 1,
+  `reason`             TEXT         NULL,
+  `status`             ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `supervisor_notes`   TEXT         NULL,
+  `created_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_sales_person` (`sales_person_id`),
+  CONSTRAINT `fk_sr_user` FOREIGN KEY (`sales_person_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 24. supervisor_reports ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `supervisor_reports` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `supervisor_id`  INT UNSIGNED  NOT NULL,
+  `owner_id`       INT UNSIGNED  NULL,
+  `report_year`    SMALLINT UNSIGNED NOT NULL,
+  `report_month`   TINYINT UNSIGNED  NOT NULL,
+  `total_products` INT UNSIGNED  NOT NULL DEFAULT 0,
+  `total_quantity` INT UNSIGNED  NOT NULL DEFAULT 0,
+  `total_value`    DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `report_data`    JSON          NULL COMMENT 'Serialized product snapshot',
+  `sent_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_supervisor` (`supervisor_id`),
+  KEY `idx_owner`      (`owner_id`),
+  CONSTRAINT `fk_srep_supervisor` FOREIGN KEY (`supervisor_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 25. technician_orders ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_orders` (
+  `id`               INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `technician_id`    INT UNSIGNED  NOT NULL,
+  `seller_id`        INT UNSIGNED  NULL,
+  `seller_role`      ENUM('supplier','owner') NULL,
+  `fulfillment_type` ENUM('pickup','delivery') NOT NULL DEFAULT 'delivery',
+  `delivery_address` TEXT          NULL,
+  `payment_method`   ENUM('cod','gcash','card','online') NOT NULL DEFAULT 'cod',
+  `payment_status`   ENUM('pending','paid','failed')     NOT NULL DEFAULT 'pending',
+  `order_status`     ENUM('pending','confirmed','preparing','ready','shipped','delivered','cancelled') NOT NULL DEFAULT 'pending',
+  `subtotal`         DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `shipping_fee`     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `total_amount`     DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `reference`        VARCHAR(100)  NULL,
+  `paymongo_id`      VARCHAR(100)  NULL,
+  `checkout_url`     VARCHAR(1000) NULL,
+  `notes`            TEXT          NULL,
+  `seller_notes`     TEXT          NULL,
+  `created_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_reference` (`reference`),
+  KEY `idx_technician` (`technician_id`),
+  KEY `idx_seller`     (`seller_id`),
+  CONSTRAINT `fk_to_tech` FOREIGN KEY (`technician_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 26. technician_order_items ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_order_items` (
+  `id`           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `order_id`     INT UNSIGNED  NOT NULL,
+  `product_id`   INT UNSIGNED  NULL,
+  `product_name` VARCHAR(255)  NOT NULL,
+  `category`     VARCHAR(100)  NULL,
+  `unit_price`   DECIMAL(10,2) NOT NULL,
+  `quantity`     INT UNSIGNED  NOT NULL DEFAULT 1,
+  `subtotal`     DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_order`   (`order_id`),
+  KEY `idx_product` (`product_id`),
+  CONSTRAINT `fk_toi_order`   FOREIGN KEY (`order_id`)   REFERENCES `technician_orders`(`id`)  ON DELETE CASCADE,
+  CONSTRAINT `fk_toi_product` FOREIGN KEY (`product_id`) REFERENCES `supplier_products`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 27. technician_supply_requests ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `technician_supply_requests` (
+  `id`                 INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `technician_id`      INT UNSIGNED NOT NULL,
+  `product_id`         INT UNSIGNED NULL,
+  `supplier_id`        INT UNSIGNED NULL,
+  `quantity_requested` INT UNSIGNED NOT NULL DEFAULT 1,
+  `note`               TEXT         NULL,
+  `status`             ENUM('pending','approved','rejected','fulfilled','cancelled') NOT NULL DEFAULT 'pending',
+  `supplier_notes`     TEXT         NULL,
+  `created_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_technician` (`technician_id`),
+  KEY `idx_product`    (`product_id`),
+  KEY `idx_supplier`   (`supplier_id`),
+  CONSTRAINT `fk_tsr_tech`     FOREIGN KEY (`technician_id`) REFERENCES `users`(`id`)             ON DELETE CASCADE,
+  CONSTRAINT `fk_tsr_product`  FOREIGN KEY (`product_id`)    REFERENCES `supplier_products`(`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_tsr_supplier` FOREIGN KEY (`supplier_id`)   REFERENCES `users`(`id`)             ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 28. conversations ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `conversations` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_a_id`  INT UNSIGNED NOT NULL COMMENT 'Lower of the two user IDs',
+  `user_b_id`  INT UNSIGNED NOT NULL COMMENT 'Higher of the two user IDs',
+  `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pair`    (`user_a_id`, `user_b_id`),
+  KEY          `idx_user_a` (`user_a_id`),
+  KEY          `idx_user_b` (`user_b_id`),
+  CONSTRAINT `fk_conv_a` FOREIGN KEY (`user_a_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_conv_b` FOREIGN KEY (`user_b_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 29. messages ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `messages` (
+  `id`              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `conversation_id` INT UNSIGNED NOT NULL,
+  `sender_id`       INT UNSIGNED NOT NULL,
+  `body`            TEXT         NULL,
+  `file_url`        VARCHAR(500) NULL,
+  `file_type`       ENUM('image','video') NULL,
+  `file_name`       VARCHAR(255) NULL,
+  `is_read`         TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at`      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_conversation` (`conversation_id`),
+  KEY `idx_sender`       (`sender_id`),
+  KEY `idx_is_read`      (`is_read`),
+  CONSTRAINT `fk_msg_conv`   FOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_msg_sender` FOREIGN KEY (`sender_id`)       REFERENCES `users`(`id`)         ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 30. notifications ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `type`       VARCHAR(60)  NOT NULL DEFAULT 'system',
+  `title`      VARCHAR(191) NOT NULL,
+  `body`       TEXT         NULL,
+  `is_read`    TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user`    (`user_id`),
+  KEY `idx_is_read` (`is_read`),
+  CONSTRAINT `fk_notif_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 31. shops ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `shops` (
+  `id`          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `owner_id`    INT UNSIGNED NOT NULL,
+  `name`        VARCHAR(191) NOT NULL,
+  `description` TEXT         NULL,
+  `city`        VARCHAR(120) NULL,
+  `address`     TEXT         NULL,
+  `phone`       VARCHAR(30)  NULL,
+  `email`       VARCHAR(191) NULL,
+  `logo_url`    VARCHAR(500) NULL,
+  `is_active`   TINYINT(1)   NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  KEY `idx_owner`    (`owner_id`),
+  KEY `idx_is_active`(`is_active`),
+  CONSTRAINT `fk_shop_owner` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 32. shop_members ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `shop_members` (
+  `id`      INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `shop_id` INT UNSIGNED NOT NULL,
+  `user_id` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_shop_user` (`shop_id`, `user_id`),
+  CONSTRAINT `fk_sm_shop` FOREIGN KEY (`shop_id`) REFERENCES `shops`(`id`)  ON DELETE CASCADE,
+  CONSTRAINT `fk_sm_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 33. customer_payments (PayMongo checkout for customer product orders) ─
+CREATE TABLE IF NOT EXISTS `customer_payments` (
+  `id`           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `customer_id`  INT UNSIGNED  NOT NULL,
+  `reference`    VARCHAR(100)  NOT NULL,
+  `paymongo_id`  VARCHAR(100)  NULL,
+  `amount`       DECIMAL(10,2) NOT NULL,
+  `currency`     CHAR(3)       NOT NULL DEFAULT 'PHP',
+  `status`       ENUM('pending','paid','failed','cancelled') NOT NULL DEFAULT 'pending',
+  `checkout_url` VARCHAR(1000) NULL,
+  `cart_snapshot`JSON          NULL COMMENT 'Cart items at time of checkout',
+  `paid_at`      DATETIME      NULL,
+  `created_at`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_reference` (`reference`),
+  KEY `idx_customer` (`customer_id`),
+  CONSTRAINT `fk_cpay_customer` FOREIGN KEY (`customer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 34. wishlist ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `wishlist` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `product_id` INT UNSIGNED NOT NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_user_product` (`user_id`, `product_id`),
+  CONSTRAINT `fk_wl_user`    FOREIGN KEY (`user_id`)    REFERENCES `users`(`id`)             ON DELETE CASCADE,
+  CONSTRAINT `fk_wl_product` FOREIGN KEY (`product_id`) REFERENCES `supplier_products`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── 35. vouchers ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `vouchers` (
+  `id`              INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `code`            VARCHAR(50)   NOT NULL,
+  `discount_type`   ENUM('fixed','percent') NOT NULL DEFAULT 'fixed',
+  `discount_value`  DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `min_order`       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  `max_uses`        INT UNSIGNED  NOT NULL DEFAULT 1,
+  `used_count`      INT UNSIGNED  NOT NULL DEFAULT 0,
+  `valid_from`      DATETIME      NULL,
+  `valid_until`     DATETIME      NULL,
+  `is_active`       TINYINT(1)    NOT NULL DEFAULT 1,
+  `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
---  3. REMEMBER ME TOKENS
---     SHA-256 hashed tokens stored in httpOnly cookies.
+--  DEFAULT ADMIN USER
+--  Password: Admin@1234  (bcrypt cost 12)
+--  ⚠ Change this password immediately after first login!
 -- ============================================================
-CREATE TABLE IF NOT EXISTS remember_tokens (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id    INT UNSIGNED NOT NULL,
-  token_hash VARCHAR(64)  NOT NULL,
-  expires_at DATETIME     NOT NULL,
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_token   (token_hash),
-  INDEX      idx_user   (user_id),
-  CONSTRAINT fk_remember_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  4. RATE LIMITS
---     Per-IP attempt tracking for login, register, OTP resend.
--- ============================================================
-CREATE TABLE IF NOT EXISTS rate_limits (
-  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  identifier   VARCHAR(45)  NOT NULL,   -- IPv4 or IPv6 address
-  action       VARCHAR(50)  NOT NULL,   -- 'login' | 'register' | 'resend_otp'
-  attempted_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_identifier_action (identifier, action, attempted_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  5. SHOPS
---     A shop is owned by a user with role = 'owner'.
---     Technicians and customers are linked to shops via
---     shop_members and bookings respectively.
--- ============================================================
-CREATE TABLE IF NOT EXISTS shops (
-  id           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-  owner_id     INT UNSIGNED  NOT NULL,
-  name         VARCHAR(100)  NOT NULL,
-  description  TEXT          NULL,
-  address      VARCHAR(255)  NULL,
-  city         VARCHAR(100)  NULL,
-  phone        VARCHAR(20)   NULL,
-  email        VARCHAR(255)  NULL,
-  logo_url     VARCHAR(500)  NULL,
-  is_active    TINYINT(1)    NOT NULL DEFAULT 1,
-  created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                      ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_owner   (owner_id),
-  INDEX idx_city    (city),
-  CONSTRAINT fk_shop_owner
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  6. SHOP MEMBERS
---     Links technicians to a shop (many-to-one).
--- ============================================================
-CREATE TABLE IF NOT EXISTS shop_members (
-  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  shop_id      INT UNSIGNED NOT NULL,
-  user_id      INT UNSIGNED NOT NULL,   -- must have role = 'technician'
-  joined_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_shop_user (shop_id, user_id),
-  CONSTRAINT fk_member_shop
-    FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE,
-  CONSTRAINT fk_member_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  7. TECHNICIAN PROFILES
---     Extended profile info for phone_technician users.
---     One row per technician — created automatically on registration
---     or filled in later via the profile page.
--- ============================================================
-CREATE TABLE IF NOT EXISTS technician_profiles (
-  id               INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-  user_id          INT UNSIGNED  NOT NULL,
-  specialization   VARCHAR(150)  NULL,    -- e.g. "Screen Repair, Water Damage"
-  experience_years TINYINT       NOT NULL DEFAULT 0,
-  bio              TEXT          NULL,
-  certifications   VARCHAR(500)  NULL,    -- comma-separated or JSON string
-  availability     ENUM('available','busy','unavailable') NOT NULL DEFAULT 'available',
-  rating_avg       DECIMAL(3,2)  NOT NULL DEFAULT 0.00,  -- cached average rating
-  rating_count     INT UNSIGNED  NOT NULL DEFAULT 0,
-  created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                          ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_user (user_id),
-  INDEX idx_availability (availability),
-  CONSTRAINT fk_tp_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ── ALTER: add technician_profiles if table already exists ───────────────
--- Run this only if you need to add the table to an existing database:
--- (The CREATE TABLE IF NOT EXISTS above handles new installs automatically.)
-
--- ============================================================
---  8. SERVICES
---     Repair services offered by a shop (e.g. Screen Repair).
--- ============================================================
-CREATE TABLE IF NOT EXISTS services (
-  id           INT UNSIGNED   NOT NULL AUTO_INCREMENT,
-  shop_id      INT UNSIGNED   NOT NULL,
-  name         VARCHAR(100)   NOT NULL,
-  description  TEXT           NULL,
-  price        DECIMAL(10,2)  NOT NULL DEFAULT 0.00,
-  duration_min INT            NOT NULL DEFAULT 60,   -- estimated minutes
-  is_active    TINYINT(1)     NOT NULL DEFAULT 1,
-  created_at   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_shop (shop_id),
-  CONSTRAINT fk_service_shop
-    FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  8. DEVICES
---     Customer-owned devices that can be booked for repair.
--- ============================================================
-CREATE TABLE IF NOT EXISTS devices (
-  id           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-  customer_id  INT UNSIGNED  NOT NULL,
-  brand        VARCHAR(50)   NOT NULL,   -- e.g. Apple, Samsung
-  model        VARCHAR(100)  NOT NULL,   -- e.g. iPhone 14 Pro
-  serial_no    VARCHAR(100)  NULL,
-  color        VARCHAR(50)   NULL,
-  notes        TEXT          NULL,
-  created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_customer (customer_id),
-  CONSTRAINT fk_device_customer
-    FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  9. BOOKINGS
---     A customer books a service for a device at a shop.
---     Optionally assigned to a specific technician.
--- ============================================================
-CREATE TABLE IF NOT EXISTS bookings (
-  id              INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-  customer_id     INT UNSIGNED  NOT NULL,
-  shop_id         INT UNSIGNED  NOT NULL,
-  service_id      INT UNSIGNED  NOT NULL,
-  device_id       INT UNSIGNED  NULL,                -- optional
-  technician_id   INT UNSIGNED  NULL,                -- assigned after booking
-  scheduled_at    DATETIME      NOT NULL,
-  status          ENUM(
-                    'pending',      -- just booked, awaiting confirmation
-                    'confirmed',    -- shop confirmed
-                    'in_progress',  -- technician working on it
-                    'completed',    -- repair done
-                    'cancelled'     -- cancelled by customer or shop
-                  )             NOT NULL DEFAULT 'pending',
-  problem_desc    TEXT          NULL,                -- customer's description
-  technician_notes TEXT         NULL,                -- internal notes
-  total_price     DECIMAL(10,2) NULL,
-  created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                         ON UPDATE CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_customer    (customer_id),
-  INDEX idx_shop        (shop_id),
-  INDEX idx_technician  (technician_id),
-  INDEX idx_status      (status),
-  INDEX idx_scheduled   (scheduled_at),
-  CONSTRAINT fk_booking_customer
-    FOREIGN KEY (customer_id)   REFERENCES users(id)    ON DELETE CASCADE,
-  CONSTRAINT fk_booking_shop
-    FOREIGN KEY (shop_id)       REFERENCES shops(id)    ON DELETE CASCADE,
-  CONSTRAINT fk_booking_service
-    FOREIGN KEY (service_id)    REFERENCES services(id) ON DELETE RESTRICT,
-  CONSTRAINT fk_booking_device
-    FOREIGN KEY (device_id)     REFERENCES devices(id)  ON DELETE SET NULL,
-  CONSTRAINT fk_booking_tech
-    FOREIGN KEY (technician_id) REFERENCES users(id)    ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  10. BOOKING STATUS HISTORY
---      Audit trail of every status change on a booking.
--- ============================================================
-CREATE TABLE IF NOT EXISTS booking_status_history (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  booking_id  INT UNSIGNED NOT NULL,
-  changed_by  INT UNSIGNED NOT NULL,   -- user who made the change
-  old_status  VARCHAR(20)  NOT NULL,
-  new_status  VARCHAR(20)  NOT NULL,
-  note        TEXT         NULL,
-  changed_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_booking (booking_id),
-  CONSTRAINT fk_history_booking
-    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
-  CONSTRAINT fk_history_user
-    FOREIGN KEY (changed_by) REFERENCES users(id)    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  11. REVIEWS
---      Customer reviews a completed booking (1 per booking).
--- ============================================================
-CREATE TABLE IF NOT EXISTS reviews (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  booking_id  INT UNSIGNED NOT NULL,
-  customer_id INT UNSIGNED NOT NULL,
-  shop_id     INT UNSIGNED NOT NULL,
-  rating      TINYINT      NOT NULL CHECK (rating BETWEEN 1 AND 5),
-  comment     TEXT         NULL,
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_booking_review (booking_id),   -- one review per booking
-  INDEX idx_shop   (shop_id),
-  INDEX idx_rating (rating),
-  CONSTRAINT fk_review_booking
-    FOREIGN KEY (booking_id)  REFERENCES bookings(id) ON DELETE CASCADE,
-  CONSTRAINT fk_review_customer
-    FOREIGN KEY (customer_id) REFERENCES users(id)    ON DELETE CASCADE,
-  CONSTRAINT fk_review_shop
-    FOREIGN KEY (shop_id)     REFERENCES shops(id)    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  12. MESSAGES
---      In-app chat between customer and technician/shop.
--- ============================================================
-CREATE TABLE IF NOT EXISTS messages (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  booking_id  INT UNSIGNED NOT NULL,
-  sender_id   INT UNSIGNED NOT NULL,
-  body        TEXT         NOT NULL,
-  is_read     TINYINT(1)   NOT NULL DEFAULT 0,
-  sent_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_booking (booking_id),
-  INDEX idx_sender  (sender_id),
-  CONSTRAINT fk_msg_booking
-    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
-  CONSTRAINT fk_msg_sender
-    FOREIGN KEY (sender_id)  REFERENCES users(id)    ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  13. NOTIFICATIONS
---      System notifications sent to users (booking updates, etc.)
--- ============================================================
-CREATE TABLE IF NOT EXISTS notifications (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id     INT UNSIGNED NOT NULL,
-  type        VARCHAR(50)  NOT NULL,   -- 'booking_confirmed', 'otp', etc.
-  title       VARCHAR(150) NOT NULL,
-  body        TEXT         NOT NULL,
-  is_read     TINYINT(1)   NOT NULL DEFAULT 0,
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  INDEX idx_user_read (user_id, is_read),
-  CONSTRAINT fk_notif_user
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  14. PROMOTIONS
---      Discount codes or offers created by shop owners.
--- ============================================================
-CREATE TABLE IF NOT EXISTS promotions (
-  id           INT UNSIGNED   NOT NULL AUTO_INCREMENT,
-  shop_id      INT UNSIGNED   NOT NULL,
-  code         VARCHAR(30)    NOT NULL,
-  description  VARCHAR(255)   NULL,
-  discount_pct DECIMAL(5,2)   NOT NULL DEFAULT 0.00,  -- percentage off
-  valid_from   DATETIME       NOT NULL,
-  valid_until  DATETIME       NOT NULL,
-  max_uses     INT            NULL,                    -- NULL = unlimited
-  used_count   INT            NOT NULL DEFAULT 0,
-  is_active    TINYINT(1)     NOT NULL DEFAULT 1,
-  created_at   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_shop_code (shop_id, code),
-  INDEX idx_shop (shop_id),
-  CONSTRAINT fk_promo_shop
-    FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  15. PAYMENTS
---      Payment record per booking.
--- ============================================================
-CREATE TABLE IF NOT EXISTS payments (
-  id             INT UNSIGNED   NOT NULL AUTO_INCREMENT,
-  booking_id     INT UNSIGNED   NOT NULL,
-  amount         DECIMAL(10,2)  NOT NULL,
-  currency       VARCHAR(3)     NOT NULL DEFAULT 'USD',
-  method         ENUM('cash','card','online') NOT NULL DEFAULT 'cash',
-  status         ENUM('pending','paid','refunded','failed')
-                                NOT NULL DEFAULT 'pending',
-  transaction_id VARCHAR(255)   NULL,   -- from payment gateway
-  paid_at        DATETIME       NULL,
-  created_at     DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_booking_payment (booking_id),
-  INDEX idx_status (status),
-  CONSTRAINT fk_payment_booking
-    FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
---  SAMPLE DATA — remove before going live
---  Password for all sample accounts: Password1
--- ============================================================
-
--- Sample owner
-INSERT IGNORE INTO users
-  (first_name, last_name, email, password_hash, role, is_verified)
+INSERT IGNORE INTO `users`
+  (`first_name`, `last_name`, `email`, `password_hash`, `role`, `is_verified`, `is_active`)
 VALUES
-  ('Admin', 'Owner', 'owner@fixandgo.com',
-   '$2y$12$0fxHhMJKgJ2atMnINeil3eDBYbozoxI85xI1HmbDSn213l10tN.3a',
-   'owner', 1);
-
--- Sample phone technicians
-INSERT IGNORE INTO users
-  (first_name, last_name, email, password_hash, role, is_verified)
-VALUES
-  ('Carlos', 'Reyes',    'carlos@fixandgo.com',
-   '$2y$12$0fxHhMJKgJ2atMnINeil3eDBYbozoxI85xI1HmbDSn213l10tN.3a',
-   'phone_technician', 1),
-  ('Ana',    'Dela Cruz', 'ana@fixandgo.com',
-   '$2y$12$0fxHhMJKgJ2atMnINeil3eDBYbozoxI85xI1HmbDSn213l10tN.3a',
-   'phone_technician', 1),
-  ('Marco',  'Santos',   'marco@fixandgo.com',
-   '$2y$12$0fxHhMJKgJ2atMnINeil3eDBYbozoxI85xI1HmbDSn213l10tN.3a',
-   'phone_technician', 1);
-
--- Technician profiles (must run AFTER technician_profiles table is created above)
-INSERT IGNORE INTO technician_profiles
-  (user_id, specialization, experience_years, bio, availability)
-SELECT id, 'Screen Repair, Battery Replacement', 3,
-       'Experienced in all major brands. Fast and reliable service.', 'available'
-FROM users WHERE email = 'carlos@fixandgo.com' LIMIT 1;
-
-INSERT IGNORE INTO technician_profiles
-  (user_id, specialization, experience_years, bio, availability)
-SELECT id, 'Water Damage, Charging Port Repair', 5,
-       'Specialist in liquid damage recovery and micro-soldering.', 'available'
-FROM users WHERE email = 'ana@fixandgo.com' LIMIT 1;
-
-INSERT IGNORE INTO technician_profiles
-  (user_id, specialization, experience_years, bio, availability)
-SELECT id, 'Software Troubleshooting, Screen Repair', 2,
-       'Handles both hardware and software issues efficiently.', 'available'
-FROM users WHERE email = 'marco@fixandgo.com' LIMIT 1;
-
--- Sample customer
-INSERT IGNORE INTO users
-  (first_name, last_name, email, password_hash, role, is_verified)
-VALUES
-  ('Maria', 'Santos', 'customer@fixandgo.com',
-   '$2y$12$0fxHhMJKgJ2atMnINeil3eDBYbozoxI85xI1HmbDSn213l10tN.3a',
-   'customer', 1);
-
--- Sample shop (owned by the owner above)
-INSERT IGNORE INTO shops
-  (owner_id, name, description, address, city, phone, email)
-SELECT id, 'Fix&Go Main Shop',
-       'Fast and reliable phone repairs in the city center.',
-       '123 Repair Street', 'Manila', '+63 912 345 6789', 'shop@fixandgo.com'
-FROM users WHERE email = 'owner@fixandgo.com' LIMIT 1;
-
--- Sample services (shop id=1)
-INSERT IGNORE INTO services (shop_id, name, description, price, duration_min) VALUES
-  (1, 'Screen Replacement',   'Replace cracked or broken screens.',         1500.00, 60),
-  (1, 'Battery Replacement',  'Replace old or swollen batteries.',           800.00, 45),
-  (1, 'Charging Port Repair', 'Fix loose or non-functional charging ports.', 600.00, 30),
-  (1, 'Water Damage Repair',  'Clean and restore water-damaged phones.',    2000.00, 120),
-  (1, 'Speaker/Mic Repair',   'Fix audio issues on any device.',             700.00, 45);
-
--- Sample device for customer
-INSERT IGNORE INTO devices (customer_id, brand, model, color)
-SELECT id, 'Samsung', 'Galaxy S22', 'Phantom Black'
-FROM users WHERE email = 'customer@fixandgo.com' LIMIT 1;
-
--- Sample booking
-INSERT IGNORE INTO bookings
-  (customer_id, shop_id, service_id, device_id, scheduled_at, status, problem_desc, total_price)
-SELECT
-  (SELECT id FROM users WHERE email = 'customer@fixandgo.com' LIMIT 1),
-  1, 1,
-  (SELECT id FROM devices WHERE brand = 'Samsung' AND model = 'Galaxy S22' LIMIT 1),
-  DATE_ADD(NOW(), INTERVAL 1 DAY),
-  'confirmed',
-  'Screen is cracked on the bottom-left corner.',
-  1500.00;
+  ('Fix', 'Admin',
+   'admin@fixandgo.com',
+   '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+   'admin', 1, 1);
 
 -- ============================================================
---  AUTO-CLEANUP EVENTS
---  Purges expired rows daily. Each event is a single statement
---  so it works in phpMyAdmin without DELIMITER changes.
---  Enable the scheduler once with:
---    SET GLOBAL event_scheduler = ON;
+--  RE-ENABLE FOREIGN KEY CHECKS
 -- ============================================================
-DROP EVENT IF EXISTS cleanup_otp_tokens;
-CREATE EVENT cleanup_otp_tokens
-  ON SCHEDULE EVERY 1 DAY
-  STARTS CURRENT_TIMESTAMP
-  DO DELETE FROM otp_tokens WHERE expires_at < NOW();
+SET FOREIGN_KEY_CHECKS = 1;
 
-DROP EVENT IF EXISTS cleanup_remember_tokens;
-CREATE EVENT cleanup_remember_tokens
-  ON SCHEDULE EVERY 1 DAY
-  STARTS CURRENT_TIMESTAMP
-  DO DELETE FROM remember_tokens WHERE expires_at < NOW();
+-- ============================================================
+--  VERIFICATION QUERY — run after import to confirm all tables
+-- ============================================================
+SELECT table_name, table_rows
+FROM information_schema.tables
+WHERE table_schema = DATABASE()
+ORDER BY table_name;
 
-DROP EVENT IF EXISTS cleanup_rate_limits;
-CREATE EVENT cleanup_rate_limits
-  ON SCHEDULE EVERY 1 DAY
-  STARTS CURRENT_TIMESTAMP
-  DO DELETE FROM rate_limits WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 2 HOUR);
+-- ============================================================
+--  TABLE SUMMARY (35 tables)
+-- ============================================================
+-- 01. users                       — all roles (admin, customer, supplier…)
+-- 02. otp_tokens                  — email OTP codes
+-- 03. rate_limits                 — IP-based rate limiting
+-- 04. remember_tokens             — "Remember Me" cookies
+-- 05. user_activity_logs          — login/logout audit trail
+-- 06. seller_applications         — become supplier/owner/tech applications
+-- 07. document_approvals          — per-document review status
+-- 08. supplier_products           — core product/inventory table
+-- 09. product_submissions         — batch product submissions supplier→owner
+-- 10. submission_items            — line items in a submission batch
+-- 11. product_transfers           — owner→supervisor, supervisor→sales
+-- 12. product_transfer_history    — immutable audit of all movements
+-- 13. owner_payments              — owner PayMongo checkout sessions
+-- 14. owner_inventory             — owner purchase records
+-- 15. customer_orders             — customer product orders
+-- 16. product_reviews             — customer product ratings
+-- 17. bookings                    — repair service bookings
+-- 18. repair_payments             — customer PayMongo repair payments
+-- 19. technician_profiles         — extended technician profile
+-- 20. technician_credentials      — technician docs/photos/videos
+-- 21. technician_reviews          — post-repair customer reviews
+-- 22. sales_products              — sales person direct product listings
+-- 23. supply_requests             — sales person → supervisor supply requests
+-- 24. supervisor_reports          — monthly inventory reports
+-- 25. technician_orders           — technician buying from supplier/owner
+-- 26. technician_order_items      — line items in technician orders
+-- 27. technician_supply_requests  — technician supply requests to supplier
+-- 28. conversations               — 1-to-1 message threads
+-- 29. messages                    — individual chat messages
+-- 30. notifications               — in-app notification bell
+-- 31. shops                       — owner shop profiles
+-- 32. shop_members                — supervisor/sales person → shop mapping
+-- 33. customer_payments           — customer PayMongo product checkout
+-- 34. wishlist                    — customer wishlist items
+-- 35. vouchers                    — discount voucher codes
+-- ============================================================

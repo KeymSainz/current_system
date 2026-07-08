@@ -10,7 +10,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     const user = FGAuth.UserStore.get();
     if (!user || user.role !== 'owner') {
-      window.location.href = '../../../login.html';
+      window.location.href = '../../../login.php';
       return;
     }
 

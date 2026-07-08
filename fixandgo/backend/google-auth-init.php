@@ -2,9 +2,6 @@
 /**
  * Fix&Go — Initiate Google OAuth Flow
  * GET /backend/google-auth-init.php
- *
- * Generates a state token (CSRF protection for OAuth),
- * then redirects the user to Google's consent screen.
  */
 
 require_once __DIR__ . '/helpers.php';
@@ -16,6 +13,10 @@ $config = require __DIR__ . '/config.php';
 // Generate and store state token
 $state = bin2hex(random_bytes(16));
 $_SESSION['oauth_state'] = $state;
+
+// Force session write before redirecting to Google
+// (InfinityFree sometimes doesn't flush session data on redirect)
+session_write_close();
 
 $params = http_build_query([
     'client_id'     => $config['google_client_id'],

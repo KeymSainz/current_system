@@ -59,5 +59,5 @@ if ($user) {
 unset($_SESSION['reset_authorized_email']);
 
 jsonResponse(true, 'Password reset successfully. Please log in with your new password.', [
-    'redirect' => 'login.html',
+    'redirect' => '../login.html',
 ]);

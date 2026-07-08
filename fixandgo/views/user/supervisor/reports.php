@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- PWA -->
+  <meta name="theme-color" content="#e6a800">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fix&amp;Go">
+  <link rel="manifest" href="../../../manifest.json">
+  <link rel="apple-touch-icon" href="../../../assets/images/icons/icon-192.png">
+  <link rel="stylesheet" href="../../../assets/css/mobile.css">
+  <title>Fix&Go — Inventory Reports</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="../../../assets/css/auth.css?v=8" />
+  <link rel="stylesheet" href="../../../assets/css/supplier.css?v=5" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <style>
+    body { background: var(--fg-bg); margin: 0; }
+    .supervisor-layout { display: flex; min-height: calc(100vh - 68px); }
+    .supervisor-sidebar {
+      width: 240px; flex-shrink: 0; background: var(--fg-card-bg);
+      border-right: 1px solid var(--fg-border); padding: 1.5rem 0;
+      position: sticky; top: 68px; height: calc(100vh - 68px); overflow-y: auto;
+    }
+    .sidebar-label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--fg-muted); padding: 0 1.25rem; margin-bottom: 0.5rem;
+    }
+    .sidebar-nav { list-style: none; padding: 0; margin: 0; }
+    .sidebar-nav a {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1.25rem;
+      color: var(--fg-muted); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+      border-left: 3px solid transparent; transition: all 0.2s;
+    }
+    .sidebar-nav a:hover { color: var(--fg-primary); background: rgba(230,168,0,0.07); border-left-color: var(--fg-primary); }
+    .sidebar-nav a.active { color: var(--fg-primary); background: rgba(230,168,0,0.1); border-left-color: var(--fg-primary); font-weight: 700; }
+    .sidebar-nav a i { font-size: 1rem; width: 20px; text-align: center; }
+    .supervisor-main { flex: 1; padding: 2rem; min-width: 0; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h2 { font-size: 1.8rem; font-weight: 800; color: var(--fg-text); margin: 0 0 0.5rem 0; }
+    .page-header p { color: var(--fg-muted); margin: 0; font-size: 0.9rem; }
+    
+    .report-card {
+      background: var(--fg-card-bg); border: 1px solid var(--fg-border);
+      border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .report-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; padding-bottom: 1rem;
+      border-bottom: 2px solid var(--fg-border);
+    }
+    .report-title {
+      font-size: 1.2rem; font-weight: 700; color: var(--fg-text);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .month-selector {
+      display: flex; gap: 0.5rem; align-items: center;
+    }
+    .month-btn {
+      padding: 0.5rem 1rem; border-radius: 8px;
+      border: 1.5px solid var(--fg-border);
+      background: var(--fg-bg); color: var(--fg-text);
+      font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .month-btn:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
+    .month-btn.active { background: var(--fg-primary); color: #fff; border-color: var(--fg-primary); }
+    
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .stat-box {
+      background: var(--fg-bg); border: 1px solid var(--fg-border);
+      border-radius: 10px; padding: 1rem; text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem; font-weight: 800; line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .stat-label {
+      font-size: 0.75rem; color: var(--fg-muted);
+      font-weight: 600; text-transform: uppercase;
+    }
+    
+    .products-table {
+      width: 100%; border-collapse: collapse;
+    }
+    .products-table thead th {
+      background: var(--fg-primary); color: #fff;
+      padding: 0.75rem 1rem; text-align: left;
+      font-weight: 700; font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .products-table tbody td {
+      padding: 0.75rem 1rem; border-bottom: 1px solid var(--fg-border);
+      color: var(--fg-text); font-size: 0.85rem;
+    }
+    .products-table tbody tr:hover { background: rgba(230,168,0,0.03); }
+    
+    .empty-state {
+      text-align: center; padding: 3rem; color: var(--fg-muted);
+    }
+    .empty-state i { font-size: 3rem; display: block; margin-bottom: 1rem; opacity: 0.3; }
+    
+    .role-badge.supervisor {
+      background: rgba(230,168,0,0.12); color: #c98f00;
+      padding: 0.35rem 0.9rem; border-radius: 20px;
+      font-size: 0.75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    
+    .alert-bar {
+      padding: 0.75rem 1.25rem; border-radius: 10px;
+      font-size: 0.85rem; font-weight: 600;
+      display: flex; align-items: center; gap: 0.6rem;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .alert-success { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
+    .alert-danger { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+    .alert-info { background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25); }
+    
+    @media (max-width: 992px) {
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <nav class="fg-navbar" role="navigation">
+    <div class="d-flex align-items-center gap-3">
+      <a href="../../../dashboard.php" style="text-decoration:none;display:flex;align-items:center;">
+        <img src="../../../assets/images/logo.png" alt="Fix&Go"
+             style="height:40px;width:auto;object-fit:contain;"
+             onerror="this.outerHTML='<span style=\'font-size:1.2rem;font-weight:800;color:var(--fg-primary);\'>🔧 Fix&amp;Go</span>'">
+      </a>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <span class="role-badge supervisor"><i class="bi bi-person-check"></i> Supervisor</span>
+      <span id="navUserName" style="font-size:0.9rem;font-weight:600;color:var(--fg-text);"></span>
+      <button class="theme-toggle" id="themeToggle"><i class="bi bi-moon-fill" id="themeIcon"></i></button>
+      <a href="../../../dashboard.php" class="btn btn-sm"
+         style="border:1.5px solid var(--fg-border);border-radius:8px;color:var(--fg-primary);background:rgba(230,168,0,0.08);font-size:0.85rem;text-decoration:none;font-weight:600;">
+        <i class="bi bi-arrow-left"></i> Back to Dashboard
+      </a>
+      <button id="logoutBtn" class="btn btn-sm"
+         style="border:1.5px solid var(--fg-border);border-radius:8px;color:var(--fg-muted);background:transparent;font-size:0.85rem;cursor:pointer;">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </div>
+  </nav>
+
+  <div class="supervisor-layout">
+    <aside class="supervisor-sidebar">
+      <div class="sidebar-label">Navigation</div>
+      <ul class="sidebar-nav">
+        <li><a href="../../../dashboard.php"><i class="bi bi-house-fill"></i> Dashboard</a></li>
+        <li><a href="inventory.php"><i class="bi bi-box-seam"></i> Inventory Management</a></li>
+        <li><a href="reports.php" class="active"><i class="bi bi-bar-chart-line"></i> Reports</a></li>
+        <li><a href="profile.php"><i class="bi bi-person-circle"></i> Profile</a></li>
+      </ul>
+    </aside>
+
+    <main class="supervisor-main">
+      <div class="page-header">
+        <h2>Inventory Reports</h2>
+        <p>Monthly product reports from owner</p>
+      </div>
+
+      <div id="alertBox" style="display:none;margin-bottom:1.5rem;"></div>
+
+      <div class="report-card">
+        <div class="report-header">
+          <div class="report-title">
+            <i class="bi bi-calendar-month" style="color:var(--fg-primary);"></i>
+            Monthly Product Report
+          </div>
+          <div style="display:flex;gap:1rem;align-items:center;">
+            <button id="btnSendToOwner" class="month-btn" style="background:#10b981;color:#fff;border-color:#10b981;display:flex;align-items:center;gap:0.5rem;">
+              <i class="bi bi-send"></i> Send to Owner
+            </button>
+            <div class="month-selector">
+              <button class="month-btn" id="btnPrevMonth"><i class="bi bi-chevron-left"></i></button>
+              <span id="currentMonth" style="font-weight:700;min-width:150px;text-align:center;">Loading...</span>
+              <button class="month-btn" id="btnNextMonth"><i class="bi bi-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-value" style="color:#3b82f6;" id="statReceived">0</div>
+            <div class="stat-label">Products Received</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:#10b981;" id="statTotalQty">0</div>
+            <div class="stat-label">Total Quantity</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:#e6a800;" id="statTotalValue">₱0</div>
+            <div class="stat-label">Total Value</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:#6366f1;" id="statCategories">0</div>
+            <div class="stat-label">Categories</div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="products-table">
+            <thead>
+              <tr>
+                <th>Date Received</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Brand</th>
+                <th style="text-align:center;">Quantity</th>
+                <th style="text-align:right;">Unit Price</th>
+                <th style="text-align:right;">Total Value</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <tr>
+                <td colspan="7">
+                  <div class="empty-state">
+                    <i class="bi bi-hourglass-split"></i>
+                    <p>Loading report data...</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../../../assets/js/theme.js"></script>
+  <script src="../../../assets/js/auth-utils.js"></script>
+  <script src="../../assets/js/session-timeout.js"></script>
+  <script>
+    // Logout handler with modal
+    document.addEventListener('DOMContentLoaded', function() {
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+          FGAuth.showLogoutModal(function() {
+            fetch('../../../backend/logout.php', { method: 'POST' })
+              .finally(function() {
+                FGAuth.UserStore.clear();
+                window.location.href = '../../../index.php?logout=true';
+              });
+          });
+        });
+      }
+    });
+  </script>
+  <script src="reports.js"></script>
+<script src="../../../assets/js/pwa.js" defer></script>
+</body>
+</html>
+

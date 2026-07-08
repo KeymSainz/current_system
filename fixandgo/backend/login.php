@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Fix&Go — Login Endpoint
  * POST /backend/login.php
@@ -6,7 +6,7 @@
  * Flow:
  *  1. Validate credentials against DB
  *  2. Track failed attempts — lock account after 3 failures (15 min)
- *  3. On success → reset attempts, generate OTP, email it, redirect to otp.html
+ *  3. On success → reset attempts, generate OTP, email it, redirect to otp.php
  *  4. OTP verified → session created → dashboard
  *
  * Security:

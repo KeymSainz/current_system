@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // ── Auth check ──────────────────────────────────────────────
   const user = FGAuth.UserStore.get();
   if (!user || user.role !== 'supplier') {
-    window.location.href = '../../../login.html';
+    window.location.href = '../../../login.php';
     return;
   }
   const navName = document.getElementById('navUserName');

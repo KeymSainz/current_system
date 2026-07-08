@@ -27,15 +27,16 @@ document.addEventListener('DOMContentLoaded', function () {
   if (FGAuth.UserStore.isLoggedIn()) {
     const user = FGAuth.UserStore.get();
     if (user && user.role === 'supervisor') {
-      window.location.href = 'views/user/supervisor/dashboard.html';
+      window.location.href = 'views/user/supervisor/dashboard.php';
     } else {
-      window.location.href = 'dashboard.html';
+      window.location.href = 'dashboard.php';
     }
     return;
   }
 
   // ── Fetch real CSRF token from server on load ──────────────────────────
-  fetch('backend/csrf-token.php')
+  var backendBase = window.FG_BACKEND || 'backend/';
+  fetch(backendBase + 'csrf-token.php', { credentials: 'include' })
     .then(function (r) { return r.json(); })
     .then(function (data) {
       document.querySelectorAll('[name="_csrf"]').forEach(function (el) {
@@ -114,20 +115,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    fetch('backend/login.php', {
+    fetch((window.FG_BACKEND || 'backend/') + 'login.php', {
       method: 'POST',
       body:   formData,
+      credentials: 'include',
     })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        // InfinityFree security check returns HTML — detect and retry once
+        var ct = r.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) {
+          throw new Error('non-json');
+        }
+        return r.json();
+      })
       .then(function (data) {
         FGAuth.setButtonLoading(loginBtn, false);
 
         if (!data.success) {
           // Redirect to OTP page (unverified account)
-          if (data.redirect === 'otp.html') {
+          if (data.redirect === 'otp.php') {
             sessionStorage.setItem('fg_pending_email', email);
             sessionStorage.setItem('fg_pending_purpose', 'verify');
-            window.location.href = 'otp.html';
+            window.location.href = 'fixandgo/otp.html';
             return;
           }
 
@@ -160,12 +169,16 @@ document.addEventListener('DOMContentLoaded', function () {
         sessionStorage.setItem('fg_pending_purpose', 'login');
         const redirectParam = new URLSearchParams(window.location.search).get('redirect') || '';
         if (redirectParam) sessionStorage.setItem('fg_post_login_redirect', redirectParam);
-        window.location.href = data.redirect || 'otp.php';
+        // Normalize otp.php redirect to actual otp location
+        const dest = (!data.redirect || data.redirect === 'otp.php')
+          ? 'fixandgo/otp.html'
+          : data.redirect;
+        window.location.href = dest;
       })
       .catch(function () {
         FGAuth.setButtonLoading(loginBtn, false);
         FGAuth.showAlert('loginAlert',
-          'Could not connect to the server. Please try again.', 'danger');
+          'Server busy — please wait a moment and try again.', 'danger');
       });
   });
 
@@ -246,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
     googleBtn.innerHTML =
       '<span class="btn-spinner" style="display:inline-block;border:2px solid rgba(0,0,0,0.2);border-top-color:#333;width:1rem;height:1rem;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Connecting…';
 
-    window.location.href = 'backend/google-auth-init.php';
+    window.location.href = (window.FG_BACKEND || 'backend/') + 'google-auth-init.php';
   });
 
   /* ------------------------------------------------------------------ */

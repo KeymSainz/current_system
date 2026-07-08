@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Fix&Go — Registration Page Logic
  *
  * Submits to the real PHP backend: POST /backend/register.php
@@ -42,7 +42,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const rateLimiter = new FGAuth.RateLimiter('register', 3, 60 * 60 * 1000);
 
   // ── Fetch real CSRF token from server on load ──────────────────────────
-  fetch('backend/csrf-token.php')
+  var backendBase = window.FG_BACKEND || 'backend/';
+  fetch(backendBase + 'csrf-token.php')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       document.querySelectorAll('[name="_csrf"]').forEach(function (el) {
@@ -170,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    fetch('backend/register.php', {
+    fetch((window.FG_BACKEND || 'backend/') + 'register.php', {
       method: 'POST',
       body:   formData,
     })
@@ -188,7 +189,10 @@ document.addEventListener('DOMContentLoaded', function () {
         FGAuth.showAlert('registerAlert', data.message, 'success');
 
         setTimeout(function () {
-          window.location.href = data.redirect || 'otp.html';
+          const dest = (!data.redirect || data.redirect === 'otp.php')
+            ? 'fixandgo/otp.html'
+            : data.redirect;
+          window.location.href = dest;
         }, 800);
       })
       .catch(function () {
@@ -207,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '<span class="btn-spinner" style="display:inline-block;border:2px solid rgba(0,0,0,0.2);border-top-color:#333;width:1rem;height:1rem;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Connecting…';
 
     // Redirect to PHP which builds the Google OAuth URL and redirects
-    window.location.href = 'backend/google-auth-init.php';
+    window.location.href = (window.FG_BACKEND || 'backend/') + 'google-auth-init.php';
   });
 
   /* ------------------------------------------------------------------ */

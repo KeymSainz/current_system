@@ -137,9 +137,11 @@ if ($method === 'POST') {
         }
 
         $newVal = $product['is_displayed'] ? 0 : 1;
+        // When displaying a product, also set status to sent_to_sales_person so it appears in shop
+        $newStatus = $newVal ? 'sent_to_sales_person' : 'verified';
         $pdo->prepare(
-            "UPDATE supplier_products SET is_displayed = ?, updated_at = NOW() WHERE id = ?"
-        )->execute([$newVal, $productId]);
+            "UPDATE supplier_products SET is_displayed = ?, status = ?, updated_at = NOW() WHERE id = ?"
+        )->execute([$newVal, $newStatus, $productId]);
 
         echo json_encode([
             'success'      => true,

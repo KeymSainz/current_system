@@ -2,6 +2,11 @@
 fixandgo/backend/config.php
 fixandgo/backend/db.php
 
+# Deploy artifacts — never push these
+fixandgo_deploy/
+fixandgo_deploy.zip
+fixandgo.zip
+
 # Environment files
 .env
 .env.local
@@ -38,15 +43,15 @@ node_modules/
 # Composer vendor (if you add any)
 vendor/
 
-# Database dumps
+# Database dumps with credentials
 *.sql.gz
 *.sql.zip
 backup_*.sql
 
-# PHPMailer (if it's a dependency, consider using Composer instead)
+# PHPMailer — using local copy
 # PHPMailer-PHPMailer-3cd2a2a/
 
-# Test files
+# Test/debug files
 test_*.php
 debug_*.php
 fixandgo/backend/test_*.php
@@ -59,3 +64,6 @@ fixandgo/backend/check_*.php
 # Cache
 cache/
 *.cache
+
+# kiro internal
+.kiro/

@@ -282,3 +282,448 @@ nav a.btn-sm:hover {
   width: auto !important;
   margin-top: 0.5rem;
 }
+
+/* ============================================================
+   Navbar & Notification Styles
+   ============================================================ */
+
+/* ── Navbar ── */
+.fg-navbar {
+  background: var(--fg-card-bg);
+  border-bottom: 1px solid var(--fg-border);
+  padding: 0.5rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  min-height: 60px;
+  max-height: 60px;
+  backdrop-filter: blur(10px);
+}
+
+.fg-navbar img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.2s;
+}
+
+.fg-navbar img:hover {
+  transform: scale(1.05);
+}
+
+/* Navbar spacing */
+.fg-navbar > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Role badge in navbar */
+.fg-navbar .role-badge {
+  padding: 0.4rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+
+.fg-navbar .role-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* User name in navbar */
+.fg-navbar #navUserName {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--fg-text);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Navbar buttons */
+.fg-navbar .btn-sm {
+  padding: 0.45rem 1rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+  border: 1.5px solid;
+}
+
+.fg-navbar .btn-sm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Notification Bell ── */
+.notif-wrap {
+  position: relative;
+}
+
+.notif-bell {
+  background: var(--fg-bg);
+  border: 1.5px solid var(--fg-border);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--fg-text);
+  transition: all 0.2s;
+  position: relative;
+}
+
+.notif-bell:hover {
+  border-color: var(--fg-primary);
+  color: var(--fg-primary);
+  background: rgba(230,168,0,0.08);
+}
+
+.notif-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #dc3545;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1;
+}
+
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-width: 90vw;
+  background: var(--fg-card-bg);
+  border: 1px solid var(--fg-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.notif-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--fg-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--fg-text);
+}
+
+.notif-dropdown #notifList {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--fg-border);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notif-item:hover {
+  background: var(--fg-bg);
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item.unread {
+  background: rgba(230,168,0,0.05);
+}
+
+.notif-item-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--fg-text);
+  margin-bottom: 0.25rem;
+}
+
+.notif-item-text {
+  font-size: 0.82rem;
+  color: var(--fg-muted);
+  margin-bottom: 0.3rem;
+}
+
+.notif-item-time {
+  font-size: 0.72rem;
+  color: var(--fg-muted);
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE — applies to all inner pages using supplier.css
+   Covers all phone sizes from 320px (smallest) up to 768px
+   ============================================================ */
+
+/* ── Prevent all horizontal overflow ── */
+html, body { overflow-x: hidden; max-width: 100%; }
+
+/* ── Navbar: single row on mobile, no wrapping ── */
+@media (max-width: 768px) {
+  .fg-navbar {
+    flex-wrap: nowrap !important;
+    max-height: none !important;
+    min-height: 54px !important;
+    padding: 0.4rem 0.85rem !important;
+    gap: 0.3rem;
+  }
+  .fg-navbar > div:last-child {
+    gap: 0.35rem !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-end;
+  }
+  /* Shrink nav buttons */
+  .fg-navbar .btn-sm {
+    padding: 0.3rem 0.65rem !important;
+    font-size: 0.75rem !important;
+  }
+  /* Shrink role badge */
+  .fg-navbar .role-badge {
+    font-size: 0.68rem !important;
+    padding: 0.2rem 0.5rem !important;
+  }
+  /* Shrink icon buttons */
+  .notif-bell,
+  .theme-toggle {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 0.88rem !important;
+  }
+  /* btn-send in chat shrinks */
+  .btn-send {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 0.95rem !important;
+  }
+  /* Modals: full-width on mobile */
+  [style*="max-width:540px"],
+  [style*="max-width:560px"],
+  [style*="max-width:600px"] {
+    max-width: calc(100vw - 1.5rem) !important;
+    margin: 0.75rem !important;
+  }
+  /* Booking form 2-col grids → 1 col */
+  [style*="grid-template-columns:1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 575px) {
+  /* Navbar: minimal — hide username and role badge */
+  .fg-navbar #navUserName,
+  .fg-navbar > div:last-child > span[style*="font-size:0.9rem"] { display: none !important; }
+  .fg-navbar .role-badge { display: none !important; }
+  /* Compact logout button — icon only */
+  #logoutBtn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+  .fg-navbar img { height: 32px !important; }
+
+  /* Notification dropdown full width */
+  .notif-dropdown {
+    width: min(320px, 94vw) !important;
+    right: -8px !important;
+  }
+
+  /* Tables: wrap with horizontal scroll */
+  .section-card > div[style*="overflow-x:auto"],
+  .section-card > div[style*="overflow-x: auto"] {
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Make action buttons in tables smaller */
+  .mini-table td button,
+  .mini-table td a {
+    padding: 0.15rem 0.4rem !important;
+    font-size: 0.65rem !important;
+  }
+  /* Filter bar stacks */
+  .filter-bar { flex-direction: column; gap: 0.5rem !important; }
+  .filter-input { width: 100% !important; min-width: unset !important; }
+  .section-head { flex-wrap: wrap; gap: 0.5rem; }
+
+  /* Stats row: 2 columns */
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 0.65rem; }
+  .stat-value { font-size: 1.4rem; }
+  .stat-label { font-size: 0.65rem; }
+
+  /* Main padding */
+  .tc-main,
+  .cu-main { padding: 0.75rem !important; }
+
+  /* Modal bodies: reduce padding */
+  [style*="padding:1.25rem"],
+  [style*="padding:1.35rem"] { padding: 0.9rem 1rem !important; }
+
+  /* Technician profile grid: already 1fr at 992px, stays fine */
+
+  /* Booking form service type: 1 col */
+  #msgSvcHome, #msgSvcShop,
+  #bfSvcHome,  #bfSvcShop {
+    flex-direction: row;
+    padding: 0.55rem 0.75rem !important;
+  }
+
+  /* Review modal star size */
+  .rv-star { font-size: 1.65rem !important; }
+
+  /* Agreement modal fills screen */
+  #agreementModal > div,
+  #bfAgreementModal > div,
+  #msgBookingModal > div,
+  #reviewModal > div,
+  #completeProofModal > div,
+  #statusUpdateModal > div {
+    max-width: 100% !important;
+    margin: 0.4rem !important;
+    border-radius: 14px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Absolute smallest phones — further compact */
+  .fg-navbar { padding: 0.3rem 0.6rem !important; }
+  .tc-main,
+  .cu-main { padding: 0.5rem !important; }
+  .stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 0.5rem; }
+  .notif-dropdown { width: min(280px, 96vw) !important; }
+}
+
+/* ════════════════════════════════════════════════════════════
+   Surface Pro 7 / Tablet-Laptop (769px – 1024px)
+   Sidebar visible, compact layout, no mobile hamburger
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  /* Keep sidebar toggle hidden — sidebar is always visible here */
+  .sidebar-toggle { display: none !important; }
+
+  /* Sidebar — narrower but always visible */
+  .supplier-sidebar,
+  .tc-sidebar,
+  .cu-sidebar {
+    width: 200px !important;
+    position: sticky !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Adjust sidebar link padding and font size */
+  .supplier-sidebar .sidebar-nav a,
+  .tc-sidebar .sidebar-nav a,
+  .cu-sidebar .sidebar-nav li a {
+    padding: 0.55rem 1rem !important;
+    font-size: 0.82rem !important;
+    gap: 0.6rem !important;
+  }
+  .supplier-sidebar .sidebar-label,
+  .tc-sidebar .sidebar-label,
+  .cu-sidebar .sidebar-section-label {
+    font-size: 0.62rem !important;
+    padding: 0.65rem 1rem 0.3rem !important;
+  }
+
+  /* Main content area — reasonable padding */
+  .supplier-main,
+  .tc-main,
+  .cu-main {
+    padding: 1.5rem !important;
+  }
+
+  /* Stats grids — 3 columns */
+  .stats-row,
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.85rem !important;
+  }
+
+  /* Section cards */
+  .section-card  { border-radius: 12px !important; }
+  .section-head  { padding: 0.85rem 1.1rem !important; }
+
+  /* Tables */
+  .mini-table            { font-size: 0.80rem !important; }
+  .mini-table th,
+  .mini-table td         { padding: 0.55rem 0.8rem !important; }
+  .data-table thead th,
+  .data-table tbody td   { padding: 0.6rem 0.9rem !important; font-size: 0.82rem !important; }
+
+  /* Filter bars — horizontal */
+  .filter-bar {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 0.6rem !important;
+  }
+  .filter-input { min-width: 150px !important; font-size: 0.82rem !important; }
+
+  /* Payment method grid — all 5 per row */
+  #paymentMethodGrid,
+  .pm-grid-5 {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+
+  /* Modals — comfortable width, centred (not bottom-sheet) */
+  [style*="max-width:540px"],
+  [style*="max-width:560px"],
+  [style*="max-width:500px"],
+  [style*="max-width:510px"],
+  [style*="max-width:520px"],
+  [style*="max-width:480px"] {
+    max-width: min(88vw, 560px) !important;
+    position: relative !important;
+    border-radius: 18px !important;
+    top: auto !important; bottom: auto !important;
+    left: auto !important; right: auto !important;
+  }
+  /* Re-centre modal overlays */
+  [id$="Modal"],
+  [id$="modal"],
+  #completeProofModal,
+  #statusUpdateModal,
+  #paymentModal,
+  #dashPayModal,
+  #reviewModal,
+  #bookingDetailModal {
+    align-items: center !important;
+    padding: 1rem !important;
+  }
+
+  /* Navbar */
+  .fg-navbar {
+    padding: 0.5rem 1.5rem !important;
+    min-height: 60px !important;
+    flex-wrap: nowrap !important;
+  }
+  .fg-navbar img { height: 40px !important; }
+
+  /* No bottom nav */
+  .mobile-bottom-nav { display: none !important; }
+  body { padding-bottom: 0 !important; }
+}

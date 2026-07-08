@@ -14,7 +14,7 @@
   document.addEventListener('DOMContentLoaded', function() {
     const user = FGAuth.UserStore.get();
     if (!user || user.role !== 'supervisor') {
-      window.location.href = '../../../login.html';
+      window.location.href = '../../../login.php';
       return;
     }
 
@@ -334,7 +334,6 @@
     document.getElementById('productCategory').value = product.category || '';
     document.getElementById('productDescription').value = product.description || '';
     document.getElementById('productPrice').value = product.price;
-    document.getElementById('productStock').value = product.stock_quantity;
     document.getElementById('productModal').classList.add('open');
   };
 

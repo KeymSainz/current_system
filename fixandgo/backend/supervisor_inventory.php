@@ -112,7 +112,8 @@ if ($method === 'POST') {
             $description   = trim($_POST['description'] ?? '');
             $category      = trim($_POST['category'] ?? '');
             $price         = floatval($_POST['price'] ?? 0);
-            $stockQuantity = intval($_POST['stock_quantity'] ?? 0);
+            // Quantity is NOT set by supervisor — starts at 0, comes from transfers
+            $stockQuantity = 0;
 
             if (empty($name) || empty($category) || $price <= 0) {
                 echo json_encode(['success' => false, 'message' => 'Name, category, and price are required.']);
@@ -154,7 +155,7 @@ if ($method === 'POST') {
             $description = trim($_POST['description'] ?? '');
             $category = trim($_POST['category'] ?? '');
             $price = floatval($_POST['price'] ?? 0);
-            $stockQuantity = intval($_POST['stock_quantity'] ?? 0);
+            // Quantity is NOT editable by supervisor — preserve existing value
 
             if (!$productId || empty($name) || empty($category) || $price <= 0) {
                 echo json_encode(['success' => false, 'message' => 'Invalid product data.']);
@@ -191,14 +192,14 @@ if ($method === 'POST') {
                 }
             }
 
-            // Update product using correct column names
+            // Update product — qty is NOT touched, supervisor cannot change quantity
             $stmt = $pdo->prepare(
                 "UPDATE supplier_products 
-                 SET category = ?, item_description = ?, qty = ?, srp = ?, 
+                 SET category = ?, item_description = ?, srp = ?, 
                      image_path = ?, updated_at = NOW()
                  WHERE id = ?"
             );
-            $stmt->execute([$category, $name, $stockQuantity, $price, $imagePath, $productId]);
+            $stmt->execute([$category, $name, $price, $imagePath, $productId]);
 
             echo json_encode([
                 'success' => true,

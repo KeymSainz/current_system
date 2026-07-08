@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Fix&Go — Session Timeout Manager
  *
  * - Tracks user activity (mouse, keyboard, touch, scroll)
@@ -304,11 +304,11 @@
           <h3 class="fg-st-title">Session Expired</h3>
           <p class="fg-st-body">
             Your session has expired due to inactivity.<br>
-            Please log in again to continue.
+            You'll be redirected to the home page shortly.
           </p>
           <div class="fg-st-actions" style="justify-content:center;">
             <button class="fg-st-btn fg-st-btn-primary" style="max-width:200px;" id="fg-st-relogin">
-              Log In Again
+              Go to Home Page
             </button>
           </div>
         </div>
@@ -334,8 +334,9 @@
       .catch(() => {})
       .finally(() => {
         try { sessionStorage.removeItem('fg_user'); } catch (e) {}
-        const loginUrl = resolveBackendPath('').replace('backend/', '') + 'login.html?reason=timeout';
-        window.location.href = loginUrl;
+        // Redirect to landing page (index.php) on timeout, not login page
+        const base = resolveBackendPath('').replace('backend/', '');
+        window.location.replace(base + 'index.php?session=expired');
       });
   }
 

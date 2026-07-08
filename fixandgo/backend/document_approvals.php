@@ -1,11 +1,11 @@
 <?php
 /**
- * Fix&Go — Document Approval API
+ * Fix&Go ΓÇö Document Approval API
  * Individual document approval/rejection for seller applications
  *
- * GET  ?action=get_documents&application_id=X  → Get all documents with approval status
- * POST action=approve_document                  → Approve a single document
- * POST action=reject_document                   → Reject a single document with reason
+ * GET  ?action=get_documents&application_id=X  ΓåÆ Get all documents with approval status
+ * POST action=approve_document                  ΓåÆ Approve a single document
+ * POST action=reject_document                   ΓåÆ Reject a single document with reason
  */
 
 require_once __DIR__ . '/helpers.php';
@@ -36,14 +36,28 @@ if ($method === 'GET') {
         }
         
         // Get application details
+        // Use safe column selection in case doc_cert migration hasn't run
+        $hasCert = (bool) $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME   = 'seller_applications'
+               AND COLUMN_NAME  = 'doc_cert'"
+        )->fetchColumn();
+        $certCol = $hasCert ? 'sa.doc_cert' : 'NULL AS doc_cert';
+
         $stmt = $pdo->prepare("
-            SELECT sa.*, u.id as user_id
+            SELECT sa.*, {$certCol}, u.id as joined_user_id
             FROM seller_applications sa
             LEFT JOIN users u ON u.email = sa.email AND u.role = sa.role
             WHERE sa.id = ?
         ");
         $stmt->execute([$appId]);
         $app = $stmt->fetch(PDO::FETCH_ASSOC);
+        // Normalize: use joined_user_id only if user_id not already in sa.*
+        if ($app && empty($app['user_id']) && !empty($app['joined_user_id'])) {
+            $app['user_id'] = $app['joined_user_id'];
+        }
+        unset($app['joined_user_id']);
         
         if (!$app) {
             echo json_encode(['success' => false, 'message' => 'Application not found']);
@@ -51,35 +65,44 @@ if ($method === 'GET') {
         }
         
         // Get document approval statuses
-        $stmt = $pdo->prepare("
-            SELECT document_type, status, rejection_reason, reviewed_at
-            FROM document_approvals
-            WHERE application_id = ?
-        ");
-        $stmt->execute([$appId]);
         $approvals = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $approvals[$row['document_type']] = $row;
+        try {
+            $stmt = $pdo->prepare("
+                SELECT document_type, status, rejection_reason, reviewed_at
+                FROM document_approvals
+                WHERE application_id = ?
+            ");
+            $stmt->execute([$appId]);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $approvals[$row['document_type']] = $row;
+            }
+        } catch (Exception $e) {
+            // document_approvals table may not exist yet — treat all as pending
+            error_log('[get_documents approvals] ' . $e->getMessage());
         }
         
         // Build document list with statuses
         $documents = [];
+        $isTechnician = ($app['role'] === 'phone_technician');
         $docMap = [
-            'gov_id' => ['label' => 'Government-Issued ID', 'path' => $app['doc_gov_id'], 'required' => true],
-            'bir'    => ['label' => 'BIR Certificate', 'path' => $app['doc_bir'], 'required' => false],
-            'dti'    => ['label' => 'DTI / SEC Registration', 'path' => $app['doc_dti'], 'required' => $app['role'] === 'owner'],
-            'bank'   => ['label' => 'Bank Account Proof', 'path' => $app['doc_bank'], 'required' => true],
+            'gov_id' => ['label' => 'Government-Issued ID',     'path' => $app['doc_gov_id'], 'required' => true],
+            'cert'   => ['label' => 'Certification / Training', 'path' => $app['doc_cert'] ?? null, 'required' => false],
+            'bir'    => ['label' => 'BIR Certificate',          'path' => $app['doc_bir'],    'required' => false],
+            'dti'    => ['label' => 'DTI / SEC Registration',   'path' => $app['doc_dti'],    'required' => $app['role'] === 'owner'],
+            'bank'   => ['label' => 'Bank Account Proof',       'path' => $app['doc_bank'],   'required' => !$isTechnician],
         ];
         
         foreach ($docMap as $type => $info) {
+            if ($type === 'cert' && !$isTechnician && !$info['path']) continue;
+            if ($type === 'bank' && $isTechnician && !$info['path']) continue;
             $documents[] = [
-                'type' => $type,
-                'label' => $info['label'],
-                'path' => $info['path'],
-                'required' => $info['required'],
-                'status' => $approvals[$type]['status'] ?? 'pending',
+                'type'             => $type,
+                'label'            => $info['label'],
+                'path'             => $info['path'],
+                'required'         => $info['required'],
+                'status'           => $approvals[$type]['status'] ?? 'pending',
                 'rejection_reason' => $approvals[$type]['rejection_reason'] ?? null,
-                'reviewed_at' => $approvals[$type]['reviewed_at'] ?? null,
+                'reviewed_at'      => $approvals[$type]['reviewed_at'] ?? null,
             ];
         }
         
@@ -133,35 +156,43 @@ if ($method === 'GET') {
         }
         
         // Get document approval statuses
-        $stmt = $pdo->prepare("
-            SELECT document_type, status, rejection_reason, reviewed_at
-            FROM document_approvals
-            WHERE application_id = ?
-        ");
-        $stmt->execute([$app['id']]);
         $approvals = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $approvals[$row['document_type']] = $row;
+        try {
+            $stmt = $pdo->prepare("
+                SELECT document_type, status, rejection_reason, reviewed_at
+                FROM document_approvals
+                WHERE application_id = ?
+            ");
+            $stmt->execute([$app['id']]);
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $approvals[$row['document_type']] = $row;
+            }
+        } catch (Exception $e) {
+            error_log('[my_documents approvals] ' . $e->getMessage());
         }
         
         // Build document list with statuses
         $documents = [];
+        $isTechnician = ($app['role'] === 'phone_technician');
         $docMap = [
-            'gov_id' => ['label' => 'Government-Issued ID', 'path' => $app['doc_gov_id'], 'required' => true],
-            'bir'    => ['label' => 'BIR Certificate', 'path' => $app['doc_bir'], 'required' => false],
-            'dti'    => ['label' => 'DTI / SEC Registration', 'path' => $app['doc_dti'], 'required' => $app['role'] === 'owner'],
-            'bank'   => ['label' => 'Bank Account Proof', 'path' => $app['doc_bank'], 'required' => true],
+            'gov_id' => ['label' => 'Government-Issued ID',     'path' => $app['doc_gov_id'], 'required' => true],
+            'cert'   => ['label' => 'Certification / Training', 'path' => $app['doc_cert'] ?? null, 'required' => false],
+            'bir'    => ['label' => 'BIR Certificate',          'path' => $app['doc_bir'],    'required' => false],
+            'dti'    => ['label' => 'DTI / SEC Registration',   'path' => $app['doc_dti'],    'required' => $app['role'] === 'owner'],
+            'bank'   => ['label' => 'Bank Account Proof',       'path' => $app['doc_bank'],   'required' => !$isTechnician],
         ];
         
         foreach ($docMap as $type => $info) {
+            if ($type === 'cert' && !$isTechnician && !$info['path']) continue;
+            if ($type === 'bank' && $isTechnician && !$info['path']) continue;
             $documents[] = [
-                'type' => $type,
-                'label' => $info['label'],
-                'path' => $info['path'],
-                'required' => $info['required'],
-                'status' => $approvals[$type]['status'] ?? 'pending',
+                'type'             => $type,
+                'label'            => $info['label'],
+                'path'             => $info['path'],
+                'required'         => $info['required'],
+                'status'           => $approvals[$type]['status'] ?? 'pending',
                 'rejection_reason' => $approvals[$type]['rejection_reason'] ?? null,
-                'reviewed_at' => $approvals[$type]['reviewed_at'] ?? null,
+                'reviewed_at'      => $approvals[$type]['reviewed_at'] ?? null,
             ];
         }
         
@@ -296,7 +327,7 @@ if ($method === 'POST') {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
     $action = $body['action'] ?? '';
     
-    // ── Approve document ──────────────────────────────────────
+    // ΓöÇΓöÇ Approve document ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if ($action === 'approve_document') {
         // Admin only for this action
         if (empty($_SESSION['user_id']) || empty($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
@@ -357,7 +388,7 @@ if ($method === 'POST') {
         exit;
     }
     
-    // ── Reject document ───────────────────────────────────────
+    // ΓöÇΓöÇ Reject document ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if ($action === 'reject_document') {
         // Admin only for this action
         if (empty($_SESSION['user_id']) || empty($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
@@ -403,7 +434,7 @@ if ($method === 'POST') {
         exit;
     }
     
-    // ── Notify applicant about rejected documents ─────────────
+    // ΓöÇΓöÇ Notify applicant about rejected documents ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
     if ($action === 'notify_rejections') {
         // Admin only for this action
         if (empty($_SESSION['user_id']) || empty($_SESSION['user_role']) || $_SESSION['user_role'] !== 'admin') {
@@ -456,7 +487,7 @@ if ($method === 'POST') {
         foreach ($rejectedDocs as $doc) {
             $label = $docLabels[$doc['document_type']] ?? $doc['document_type'];
             $reason = $doc['rejection_reason'] ?? 'No reason provided';
-            $docList[] = "• {$label}: {$reason}";
+            $docList[] = "ΓÇó {$label}: {$reason}";
             $docListHTML[] = "<li><strong>{$label}:</strong> {$reason}</li>";
         }
         $docListText = implode("\n", $docList);
@@ -485,7 +516,7 @@ if ($method === 'POST') {
         
         // Send detailed email to BOTH customer email AND seller application email
         require_once __DIR__ . '/mailer.php';
-        $subject = "Document Resubmission Required — Fix&Go {$roleLabel} Application";
+        $subject = "Document Resubmission Required ΓÇö Fix&Go {$roleLabel} Application";
         $emailBody = "
 <h2>Document Resubmission Required</h2>
 <p>Dear {$app['first_name']} {$app['last_name']},</p>

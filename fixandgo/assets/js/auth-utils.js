@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Fix&Go — Auth Utilities
  * Shared helpers: CSRF simulation, rate limiting, sanitization,
  * password strength, OTP wiring, show/hide password, alerts.
@@ -329,6 +329,222 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Logout Confirmation Modal                                           */
+  /* Auto-intercepts any #logoutBtn or onclick="customerLogout()"       */
+  /* ------------------------------------------------------------------ */
+  function injectLogoutModal() {
+    // Inject modal HTML once
+    if (document.getElementById('fgLogoutModal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'fgLogoutModal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'fgLogoutTitle');
+    modal.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:99999',
+      'display:none', 'align-items:center', 'justify-content:center',
+      'padding:1rem', 'background:rgba(0,0,0,0.55)',
+      'backdrop-filter:blur(6px)', '-webkit-backdrop-filter:blur(6px)',
+    ].join(';');
+
+    modal.innerHTML = `
+      <div style="
+        background:var(--fg-card-bg,#fff);
+        border:1px solid var(--fg-border,#e5e7eb);
+        border-radius:20px;
+        box-shadow:0 32px 80px rgba(0,0,0,0.35);
+        width:100%;max-width:420px;
+        animation:fgModalIn 0.25s cubic-bezier(0.16,1,0.3,1);
+        overflow:hidden;
+      ">
+        <!-- Header -->
+        <div style="
+          padding:1.5rem 1.75rem 1.25rem;
+          border-bottom:1px solid var(--fg-border,#e5e7eb);
+          display:flex;align-items:center;gap:0.85rem;
+        ">
+          <div style="
+            width:44px;height:44px;border-radius:12px;flex-shrink:0;
+            background:rgba(220,53,69,0.1);
+            display:flex;align-items:center;justify-content:center;
+            font-size:1.3rem;
+          ">🚪</div>
+          <div>
+            <h5 id="fgLogoutTitle" style="margin:0;font-weight:800;font-size:1.05rem;color:var(--fg-text,#111);">
+              Sign Out
+            </h5>
+            <p style="margin:0;font-size:0.8rem;color:var(--fg-muted,#6b7280);">
+              Fix&amp;Go
+            </p>
+          </div>
+          <button id="fgLogoutClose" aria-label="Cancel" style="
+            margin-left:auto;width:32px;height:32px;border-radius:8px;
+            border:1.5px solid var(--fg-border,#e5e7eb);background:transparent;
+            cursor:pointer;display:flex;align-items:center;justify-content:center;
+            color:var(--fg-muted,#6b7280);font-size:1rem;transition:all 0.2s;
+          ">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:1.75rem 1.75rem 1.25rem;text-align:center;">
+          <div style="
+            width:72px;height:72px;border-radius:50%;margin:0 auto 1.25rem;
+            background:rgba(220,53,69,0.08);
+            display:flex;align-items:center;justify-content:center;
+            font-size:2rem;
+          ">👋</div>
+          <h6 style="font-size:1.1rem;font-weight:800;color:var(--fg-text,#111);margin:0 0 0.5rem;">
+            Are you sure you want to sign out?
+          </h6>
+          <p style="font-size:0.88rem;color:var(--fg-muted,#6b7280);margin:0;line-height:1.6;">
+            You'll need to sign in again to access your dashboard and account.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="
+          padding:1rem 1.75rem 1.5rem;
+          display:flex;gap:0.75rem;
+        ">
+          <button id="fgLogoutCancel" style="
+            flex:1;padding:0.75rem;border-radius:10px;
+            background:transparent;
+            color:var(--fg-muted,#6b7280);
+            border:1.5px solid var(--fg-border,#e5e7eb);
+            font-weight:600;font-size:0.9rem;cursor:pointer;
+            transition:all 0.2s;
+          ">
+            Cancel
+          </button>
+          <button id="fgLogoutConfirm" style="
+            flex:1;padding:0.75rem;border-radius:10px;
+            background:#dc3545;color:#fff;border:none;
+            font-weight:700;font-size:0.9rem;cursor:pointer;
+            transition:all 0.2s;
+            display:flex;align-items:center;justify-content:center;gap:0.5rem;
+          ">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Yes, Sign Out
+          </button>
+        </div>
+      </div>
+      <style>
+        @keyframes fgModalIn {
+          from { opacity:0; transform:scale(0.9) translateY(12px); }
+          to   { opacity:1; transform:scale(1) translateY(0); }
+        }
+        #fgLogoutConfirm:hover { background:#b02a37 !important; transform:translateY(-1px); box-shadow:0 6px 18px rgba(220,53,69,0.35); }
+        #fgLogoutCancel:hover  { border-color:var(--fg-text,#111) !important; color:var(--fg-text,#111) !important; }
+        #fgLogoutClose:hover   { border-color:#dc3545 !important; color:#dc3545 !important; background:rgba(220,53,69,0.06) !important; }
+      </style>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close handlers
+    function closeModal() {
+      modal.style.display = 'none';
+    }
+
+    document.getElementById('fgLogoutClose').addEventListener('click', closeModal);
+    document.getElementById('fgLogoutCancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal.style.display !== 'none') closeModal();
+    });
+
+    // Confirm handler — resolve the pending logout callback
+    document.getElementById('fgLogoutConfirm').addEventListener('click', function() {
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 0.7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Signing out…';
+      closeModal();
+      if (typeof modal._logoutCallback === 'function') {
+        modal._logoutCallback();
+      }
+    });
+  }
+
+  /**
+   * Show the logout confirmation modal.
+   * @param {Function} onConfirm  Called when user clicks "Yes, Sign Out"
+   */
+  function showLogoutModal(onConfirm) {
+    injectLogoutModal();
+    const modal = document.getElementById('fgLogoutModal');
+    // Reset confirm button state
+    const confirmBtn = document.getElementById('fgLogoutConfirm');
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Yes, Sign Out`;
+    }
+    modal._logoutCallback = onConfirm;
+    modal.style.display = 'flex';
+    document.getElementById('fgLogoutCancel').focus();
+  }
+
+  /**
+   * Auto-wire any #logoutBtn on the page to show the modal.
+   * Also patches the global customerLogout() function if present.
+   */
+  function autoWireLogout() {
+    // Wire #logoutBtn
+    const btn = document.getElementById('logoutBtn');
+    if (btn) {
+      // Remove existing listeners by cloning
+      const fresh = btn.cloneNode(true);
+      btn.parentNode.replaceChild(fresh, btn);
+      fresh.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showLogoutModal(function() {
+          // Detect backend path based on depth
+          const depth = (window.location.pathname.match(/\//g) || []).length;
+          let backendPath = 'backend/logout.php';
+          if (depth >= 5) backendPath = '../../../backend/logout.php';
+          else if (depth >= 4) backendPath = '../../backend/logout.php';
+
+          fetch(backendPath, { method: 'POST' })
+            .catch(function() {})
+            .finally(function() {
+              FGAuth.UserStore.clear();
+              // Redirect to root index
+              const parts = window.location.pathname.split('/');
+              const fgIdx = parts.indexOf('fixandgo');
+              const base = fgIdx >= 0 ? parts.slice(0, fgIdx + 1).join('/') : '';
+              window.location.href = base + '/index.php?logout=true';
+            });
+        });
+      });
+    }
+
+    // Patch global customerLogout() if it exists
+    if (typeof window.customerLogout === 'function') {
+      const original = window.customerLogout;
+      window.customerLogout = function() {
+        showLogoutModal(original);
+      };
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Expose to global scope                                              */
   /* ------------------------------------------------------------------ */
   global.FGAuth = {
@@ -350,12 +566,15 @@
     UserStore,
     simulateGoogleAuth,
     generateOTP,
+    showLogoutModal,
+    autoWireLogout,
   };
 
   // Auto-inject CSRF on DOM ready
   document.addEventListener('DOMContentLoaded', function () {
     FGAuth.injectCSRF();
     FGAuth.initPasswordToggles();
+    FGAuth.autoWireLogout();
   });
 
 })(window);

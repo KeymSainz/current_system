@@ -328,22 +328,24 @@ if ($method === 'POST') {
         }
         
         // Verify product exists and user owns it
+        // Owner can transfer any product where they are the supplier (original owner)
+        // or where they are the current holder
         $stmt = $pdo->prepare("
-            SELECT sp.id, sp.qty, sp.current_holder_id, sp.holder_type
+            SELECT sp.id, sp.qty, sp.current_holder_id, sp.holder_type, sp.supplier_id
             FROM supplier_products sp
-            WHERE sp.id = ? AND sp.current_holder_id = ?
+            WHERE sp.id = ? AND (sp.current_holder_id = ? OR (sp.supplier_id = ? AND ? = 'owner'))
         ");
-        $stmt->execute([$productId, $userId]);
+        $stmt->execute([$productId, $userId, $userId, $userRole]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$product) {
             // Debug: Check if product exists at all
-            $stmt = $pdo->prepare("SELECT id, current_holder_id, holder_type FROM supplier_products WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT id, supplier_id, current_holder_id, holder_type FROM supplier_products WHERE id = ?");
             $stmt->execute([$productId]);
             $productDebug = $stmt->fetch(PDO::FETCH_ASSOC);
             
             $debugMsg = $productDebug 
-                ? "Product exists but holder mismatch. Product holder: {$productDebug['current_holder_id']}, Your ID: {$userId}"
+                ? "Product exists but ownership mismatch. Supplier: {$productDebug['supplier_id']}, Holder: {$productDebug['current_holder_id']}, Your ID: {$userId}, Your role: {$userRole}"
                 : "Product ID {$productId} not found in database";
             
             echo json_encode(['success' => false, 'message' => 'Product not found or you do not own it.', 'debug' => $debugMsg]);
@@ -382,13 +384,13 @@ if ($method === 'POST') {
         try {
             // For owner → supervisor transfers, auto-accept and handle quantity-based transfer
             if ($transferType === 'owner_to_supervisor') {
-                // Reduce quantity from owner's product
+                // Reduce quantity from owner's product (match by id only — owner may not be current_holder_id)
                 $stmt = $pdo->prepare("
                     UPDATE supplier_products
                     SET qty = qty - ?
-                    WHERE id = ? AND current_holder_id = ?
+                    WHERE id = ? AND (current_holder_id = ? OR supplier_id = ?)
                 ");
-                $stmt->execute([$quantity, $productId, $userId]);
+                $stmt->execute([$quantity, $productId, $userId, $userId]);
                 
                 // Check if supervisor already has this product
                 $stmt = $pdo->prepare("
@@ -407,7 +409,9 @@ if ($method === 'POST') {
                     // Supervisor already has this product - increase quantity
                     $stmt = $pdo->prepare("
                         UPDATE supplier_products
-                        SET qty = qty + ?
+                        SET qty = qty + ?,
+                            holder_type = 'supervisor',
+                            status = 'sent_to_supervisor'
                         WHERE id = ?
                     ");
                     $stmt->execute([$quantity, $supervisorProduct['id']]);
@@ -417,7 +421,7 @@ if ($method === 'POST') {
                     $stmt = $pdo->prepare("
                         INSERT INTO supplier_products 
                         (supplier_id, category, brand, item_description, qty, srp, image_path, status, notes, current_holder_id, holder_type)
-                        SELECT supplier_id, category, brand, item_description, ?, srp, image_path, 'verified', 
+                        SELECT supplier_id, category, brand, item_description, ?, srp, image_path, 'sent_to_supervisor', 
                                CONCAT(COALESCE(notes, ''), ' [Received from owner]'), ?, 'supervisor'
                         FROM supplier_products
                         WHERE id = ?
@@ -582,14 +586,15 @@ if ($method === 'POST') {
             ");
             $stmt->execute([$transferId]);
             
-            // Update product holder
+            // Update product holder AND status based on recipient role
             $holderType = $userRole === 'supervisor' ? 'supervisor' : 'sales_person';
+            $newStatus  = $userRole === 'supervisor' ? 'sent_to_supervisor' : 'sent_to_sales_person';
             $stmt = $pdo->prepare("
                 UPDATE supplier_products
-                SET current_holder_id = ?, holder_type = ?
+                SET current_holder_id = ?, holder_type = ?, status = ?
                 WHERE id = ?
             ");
-            $stmt->execute([$userId, $holderType, $transfer['product_id']]);
+            $stmt->execute([$userId, $holderType, $newStatus, $transfer['product_id']]);
             
             // Add to transfer history
             $stmt = $pdo->prepare("

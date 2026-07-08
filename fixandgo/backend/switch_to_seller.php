@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Fix&Go — Switch to Seller Account
  *
@@ -75,6 +75,6 @@ jsonResponse(true, 'Switched to seller account.', [
         'verified'  => (bool)$seller['is_verified'],
     ],
     'redirect' => $role === 'owner'
-        ? 'dashboard.html'
-        : 'views/user/supplier/dashboard.html',
+        ? 'dashboard.php'
+        : 'views/user/supplier/dashboard.php',
 ]);

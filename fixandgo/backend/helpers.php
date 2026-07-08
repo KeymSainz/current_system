@@ -17,19 +17,20 @@ function jsonResponse(bool $success, string $message, array $data = [], int $cod
     exit;
 }
 
-// ── CORS for localhost development ────────────────────────────────────────
-// Allows fetch() calls from the HTML pages served by Apache on the same host.
+// ── CORS — allow production domain + localhost for dev ────────────────────
 function setCORSHeaders(): void
 {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    // Allow same-origin requests from localhost
+    $allowed = ['https://fixandgo.freedev.app'];
     if (preg_match('#^https?://localhost(:\d+)?$#', $origin)) {
+        $allowed[] = $origin;
+    }
+    if (in_array($origin, $allowed, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);
         header('Access-Control-Allow-Credentials: true');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
     }
-    // Handle preflight
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit;
@@ -65,13 +66,23 @@ function startSecureSession(): void
             session_unset();
             session_destroy();
 
-            // Only send JSON if this is an API request (not a page load)
-            $isApi = (
-                isset($_SERVER['HTTP_ACCEPT']) &&
-                str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')
-            ) || (
-                isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
-                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
+            // Treat as API if: JSON accept header, XHR header, or direct .php request
+            // Exclude OAuth callback — it's a browser redirect, not an API call
+            $scriptFile = $_SERVER['SCRIPT_FILENAME'] ?? '';
+            $isOAuthCallback = str_contains($scriptFile, 'google-callback.php');
+
+            $isApi = !$isOAuthCallback && (
+                (
+                    isset($_SERVER['HTTP_ACCEPT']) &&
+                    str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')
+                ) || (
+                    isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+                    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
+                ) || (
+                    // fetch() calls to backend PHP files are always API calls
+                    isset($_SERVER['SCRIPT_FILENAME']) &&
+                    str_contains($_SERVER['SCRIPT_FILENAME'], '/backend/')
+                )
             );
 
             if ($isApi) {

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Fix&Go — OTP Verification Endpoint
  * POST /backend/verify-otp.php
@@ -42,7 +42,8 @@ if (!validateEmail($email) || strlen($otp) !== 6 || !ctype_digit($otp)) {
 
 // ── Fetch User ────────────────────────────────────────────────────────────
 $stmt = $pdo->prepare(
-    'SELECT id, first_name, last_name, email, role, is_verified
+    'SELECT id, first_name, last_name, email, role, is_verified,
+            avatar_url
      FROM users WHERE email = ? LIMIT 1'
 );
 $stmt->execute([$email]);
@@ -109,7 +110,7 @@ if ($purpose === 'verify') {
     logUserActivity($pdo, (int)$user['id'], 'login');
 
     jsonResponse(true, 'Email verified! Welcome to Fix&Go.', [
-        'redirect' => 'dashboard.html',
+        'redirect' => '../index.php',
         'user'     => [
             'id'        => $user['id'],
             'firstName' => $user['first_name'],
@@ -117,6 +118,7 @@ if ($purpose === 'verify') {
             'email'     => $user['email'],
             'role'      => $user['role'],
             'verified'  => true,
+            'avatar_url' => $user['avatar_url'] ?? null,
         ],
     ]);
 
@@ -149,7 +151,7 @@ if ($purpose === 'verify') {
     logUserActivity($pdo, (int)$user['id'], 'login');
 
     jsonResponse(true, 'Login successful! Welcome back, ' . $user['first_name'] . '.', [
-        'redirect' => 'dashboard.html',
+        'redirect' => '../index.php',
         'user'     => [
             'id'        => $user['id'],
             'firstName' => $user['first_name'],
@@ -157,6 +159,7 @@ if ($purpose === 'verify') {
             'email'     => $user['email'],
             'role'      => $user['role'],
             'verified'  => true,
+            'avatar_url' => $user['avatar_url'] ?? null,
         ],
     ]);
 
@@ -166,6 +169,6 @@ if ($purpose === 'verify') {
     unset($_SESSION['pending_email'], $_SESSION['pending_purpose']);
 
     jsonResponse(true, 'Code verified. You may now set a new password.', [
-        'redirect' => 'forgot-password.html',
+        'redirect' => 'forgot-password.php',
     ]);
 }
