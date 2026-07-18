@@ -509,7 +509,7 @@
         btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing…';
         try {
           const promises = cart.map(item =>
-            fetch('../../../backend/customer_orders.php', {
+            fetch('../../../api/customer/orders', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               credentials: 'include',

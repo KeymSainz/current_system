@@ -199,7 +199,7 @@
       if (url) { el.innerHTML = '<img src="' + url + '" alt="avatar" onerror="this.parentElement.textContent=\'' + initials.toUpperCase() + '\'">' ; }
       else { el.textContent = initials.toUpperCase() || '?'; }
     })(user.avatar_url || null);
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r){return r.json();}).then(function(d){
         if (d.loggedIn && d.user) {
           FGAuth.UserStore.save(d.user);

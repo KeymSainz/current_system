@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Fix&Go — Auth Utilities
  * Shared helpers: CSRF simulation, rate limiting, sanitization,
  * password strength, OTP wiring, show/hide password, alerts.
@@ -517,7 +517,7 @@
         showLogoutModal(function() {
           // Detect backend path based on depth
           const depth = (window.location.pathname.match(/\//g) || []).length;
-          let backendPath = 'backend/logout.php';
+          let backendPath = 'api/logout';
           if (depth >= 5) backendPath = '../../../backend/logout.php';
           else if (depth >= 4) backendPath = '../../backend/logout.php';
 

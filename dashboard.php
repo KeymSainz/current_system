@@ -1,10 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <!-- FG_BACKEND must be first -->
-  <script>window.FG_BACKEND = 'backend/';</script>
+  <script>window.FG_BACKEND = 'api/session/user'';</script>
   <!-- PWA -->
   <meta name="theme-color" content="#e6a800">
   <meta name="mobile-web-app-capable" content="yes">
@@ -153,7 +153,7 @@
   <script>
     window.FG_BACKEND = (function() {
       var parts = window.location.pathname.split('/').filter(Boolean);
-      return parts.length <= 1 ? 'fixandgo/backend/' : 'backend/';
+      return parts.length <= 1 ? 'fixandgo/backend/' : 'api/session/user'';
     })();
     // Show Browse Shop button and Cart icon immediately from cached session (no waiting for fetch)
     (function() {

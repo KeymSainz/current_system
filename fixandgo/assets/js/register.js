@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Fix&Go — Registration Page Logic
  *
  * Submits to the real PHP backend: POST /backend/register.php
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Fetch real CSRF token from server on load ──────────────────────────
   var backendBase = window.FG_BACKEND || 'backend/';
-  fetch(backendBase + 'csrf-token.php')
+  fetch('api/session/csrf')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       document.querySelectorAll('[name="_csrf"]').forEach(function (el) {
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    fetch((window.FG_BACKEND || 'backend/') + 'register.php', {
+    fetch('api/register', {
       method: 'POST',
       body:   formData,
     })
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '<span class="btn-spinner" style="display:inline-block;border:2px solid rgba(0,0,0,0.2);border-top-color:#333;width:1rem;height:1rem;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Connecting…';
 
     // Redirect to PHP which builds the Google OAuth URL and redirects
-    window.location.href = (window.FG_BACKEND || 'backend/') + 'google-auth-init.php';
+    window.location.href = 'api/auth/google';
   });
 
   /* ------------------------------------------------------------------ */

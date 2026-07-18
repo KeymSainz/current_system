@@ -131,7 +131,18 @@ $_SESSION['oauth_user_payload'] = json_encode([
     'provider'  => 'google',
 ]);
 
-header('Location: ../dashboard.php');
+// Role-based redirect after Google OAuth
+$roleRedirects = [
+    'supervisor'       => '/views/user/supervisor/dashboard',
+    'owner'            => '/views/user/owner/dashboard',
+    'supplier'         => '/views/user/supplier/dashboard',
+    'sales_person'     => '/views/user/sales_person/dashboard',
+    'phone_technician' => '/views/user/phone_technician/dashboard',
+    'customer'         => '/',
+    'admin'            => '/dashboard.php',
+];
+$redirectTo = $roleRedirects[$fullUser['role']] ?? '/';
+header('Location: ' . $redirectTo);
 exit;
 
 // ── HTTP Helpers ──────────────────────────────────────────────────────────

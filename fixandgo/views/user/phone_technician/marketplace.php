@@ -196,7 +196,7 @@
   <script src="../../assets/js/session-timeout.js"></script>
   <script>
   'use strict';
-  const MKT_API = '../../../backend/technician_marketplace.php';
+  const MKT_API = '../../../api/technician/marketplace';
   let allProducts = [];
   let selectedProduct = null;
 

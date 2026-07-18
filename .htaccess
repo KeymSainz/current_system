@@ -1,0 +1,54 @@
+Options -Indexes
+RewriteEngine On
+
+# ── Security headers ──────────────────────────────────────────────────────
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "SAMEORIGIN"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# ── Block access to sensitive directories ────────────────────────────────
+RewriteRule ^app/                  - [F,L]
+RewriteRule ^fixandgo/backend/     - [F,L]
+RewriteRule ^sql_database/         - [F,L]
+RewriteRule ^PHPMailer/            - [F,L]
+RewriteRule ^uploads/              - [F,L]
+
+# ── Route /api/* through the MVC router ──────────────────────────────────
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$  router.php [QSA,L]
+
+# ── Route /views/* through the MVC router (auth-gated view serving) ─────
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^views/(.*)$  router.php [QSA,L]
+
+# ── Legacy backend/ compatibility (redirect to MVC API routes) ───────────
+# Keep old URLs working during transition period
+RewriteRule ^backend/login\.php$               router.php?_route=api/login [QSA,L]
+RewriteRule ^backend/logout\.php$              router.php?_route=api/logout [QSA,L]
+RewriteRule ^backend/register\.php$            router.php?_route=api/register [QSA,L]
+RewriteRule ^backend/verify-otp\.php$          router.php?_route=api/otp/verify [QSA,L]
+RewriteRule ^backend/resend-otp\.php$          router.php?_route=api/otp/resend [QSA,L]
+RewriteRule ^backend/forgot-password\.php$     router.php?_route=api/password/forgot [QSA,L]
+RewriteRule ^backend/reset-password\.php$      router.php?_route=api/password/reset [QSA,L]
+RewriteRule ^backend/session-user\.php$        router.php?_route=api/session/user [QSA,L]
+RewriteRule ^backend/session-ping\.php$        router.php?_route=api/session/ping [QSA,L]
+RewriteRule ^backend/csrf-token\.php$          router.php?_route=api/session/csrf [QSA,L]
+RewriteRule ^backend/notifications\.php$       router.php?_route=api/notifications [QSA,L]
+RewriteRule ^backend/shop_products\.php$       router.php?_route=api/shop/products [QSA,L]
+RewriteRule ^backend/marketplace_products\.php$ router.php?_route=api/marketplace/products [QSA,L]
+RewriteRule ^backend/marketplace_technicians\.php$ router.php?_route=api/marketplace/technicians [QSA,L]
+RewriteRule ^backend/technicians\.php$         router.php?_route=api/technicians [QSA,L]
+RewriteRule ^backend/repair_bookings\.php$     router.php?_route=api/repair/bookings [QSA,L]
+RewriteRule ^backend/repair_payment\.php$      router.php?_route=api/repair/payment [QSA,L]
+RewriteRule ^backend/customer_orders\.php$     router.php?_route=api/customer/orders [QSA,L]
+RewriteRule ^backend/messages\.php$            router.php?_route=api/messages [QSA,L]
+RewriteRule ^backend/profile\.php$             router.php?_route=api/profile [QSA,L]
+RewriteRule ^backend/google-auth-init\.php$    router.php?_route=api/auth/google [QSA,L]
+RewriteRule ^backend/google-callback\.php$     router.php?_route=api/auth/google/callback [QSA,L]
+
+# ── All other requests: serve files normally ──────────────────────────────
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule . - [L]

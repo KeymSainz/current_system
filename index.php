@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- FG_BACKEND set first so all inline scripts can use it -->
-<script>window.FG_BACKEND = 'backend/';</script>
+<script>window.FG_BACKEND = 'api/session/user'';</script>
 
 <html lang="en" data-theme="dark">
 
@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <!-- FG_BACKEND must be defined FIRST before any inline scripts use it -->
-  <script>window.FG_BACKEND = 'backend/';</script>
+  <script>window.FG_BACKEND = 'api/session/user'';</script>
   <!-- Force SW unregister + cache clear on every load -->
   <script>
     if ('serviceWorker' in navigator) {
@@ -3198,7 +3198,7 @@
         if (u && u.role !== 'supervisor') {
           // Verify with server synchronously before doing anything
           var xhr = new XMLHttpRequest();
-          xhr.open('GET', window.FG_BACKEND + 'session-user.php', false);
+          xhr.open('GET', 'api/session/user', false);
           try { xhr.send(); } catch(e) { sessionStorage.removeItem('fg_user'); u = null; }
           if (xhr.status === 200) {
             var resp = {};
@@ -5236,7 +5236,7 @@
           }, 0);
 
           // Load products for category pills only
-          fetch(window.FG_BACKEND + 'shop_products.php?action=all')
+          fetch('api/session/user'shop_products.php?action=all')
             .then(r=>r.json())
             .catch(()=>({success:false}))
             .then(shopData => {
@@ -5271,7 +5271,7 @@
         // Always verify with server — cached sessionStorage may be stale.
         // Show cached state immediately for speed, then correct if server disagrees.
         if (cached) initMarketplace(cached);
-        fetch(window.FG_BACKEND + 'session-user.php')
+        fetch('api/session/user')
           .then(r=>r.json())
           .then(d => {
             const serverUser = d.loggedIn && d.user ? d.user : null;
@@ -5302,7 +5302,7 @@
 
     (function () {
 
-      const API = window.FG_BACKEND + 'shop_products.php?action=all';
+      const API = 'api/session/user'shop_products.php?action=all';
 
       const bannerEl    = document.getElementById('shopBannerContainer');
 
@@ -5600,7 +5600,7 @@
 
     (function () {
 
-      const API = window.FG_BACKEND + 'technicians.php?action=list';
+      const API = 'api/session/user'technicians.php?action=list';
 
       const gridEl    = document.getElementById('techGridContainer');
 
@@ -6680,7 +6680,7 @@
         : JSON.parse(sessionStorage.getItem('fg_user') || 'null');
       if (!_user) return; // not logged in
 
-      fetch(window.FG_BACKEND + 'session-user.php', { credentials: 'include' })
+      fetch('api/session/user', { credentials: 'include' })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (!data.loggedIn || !data.user) return;
@@ -6719,7 +6719,7 @@
 
     function loadNavMsgCount(messagesUrl) {
 
-      fetch(window.FG_BACKEND + 'messages.php?action=unread_count', { credentials: 'include' })
+      fetch('api/session/user'messages.php?action=unread_count', { credentials: 'include' })
 
         .then(function(r) { return r.json(); })
 
@@ -6829,7 +6829,7 @@
 
       function fetchUnreadCount() {
 
-        fetch(window.FG_BACKEND + 'notifications.php?action=unread')
+        fetch('api/session/user'notifications.php?action=unread')
 
           .then(r => r.json())
 
@@ -6873,7 +6873,7 @@
 
           </div>`;
 
-        fetch(window.FG_BACKEND + 'notifications.php?action=list&limit=20')
+        fetch('api/session/user'notifications.php?action=list&limit=20')
 
           .then(r => r.json())
 
@@ -7059,7 +7059,7 @@
 
       function markAsRead(ids) {
 
-        fetch(window.FG_BACKEND + 'notifications.php?action=mark_read', {
+        fetch('api/session/user'notifications.php?action=mark_read', {
 
           method: 'POST',
 
@@ -7101,7 +7101,7 @@
 
       function markAllAsRead() {
 
-        fetch(window.FG_BACKEND + 'notifications.php?action=mark_all_read', {
+        fetch('api/session/user'notifications.php?action=mark_all_read', {
 
           method: 'POST',
 
@@ -7865,7 +7865,7 @@ function loadProductDetail(productId) {
 
   document.getElementById('pdmShopInfo').style.display = 'none';
 
-  fetch(window.FG_BACKEND + 'customer_orders.php?action=product&id=' + productId)
+  fetch('api/session/user'customer_orders.php?action=product&id=' + productId)
 
     .then(r => r.json())
 
@@ -8094,7 +8094,7 @@ function pdmRequestProduct() {
   if (!supplierId) { pdmShowAlert('Cannot determine supplier for this product.', 'danger'); return; }
   let reqBtn = document.getElementById('pdmRequestBtn');
   if (reqBtn) { reqBtn.disabled = true; reqBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Requesting…'; }
-  fetch(window.FG_BACKEND + 'technician_marketplace.php', {
+  fetch('api/session/user'technician_marketplace.php', {
     method: 'POST', credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'request_product', product_id: _pdmProduct.id, supplier_id: supplierId, quantity: qty, note: note })
@@ -8164,7 +8164,7 @@ function pdmSubmitReview() {
 
   const text = document.getElementById('pdmReviewText').value.trim();
 
-  fetch(window.FG_BACKEND + 'customer_orders.php', {
+  fetch('api/session/user'customer_orders.php', {
 
     method: 'POST',
 
@@ -8494,7 +8494,7 @@ function confirmCheckout() {
 
   const promises = items.map(item =>
 
-    fetch(window.FG_BACKEND + 'customer_orders.php', {
+    fetch('api/session/user'customer_orders.php', {
 
       method: 'POST',
 
@@ -9032,7 +9032,7 @@ function showTechProfileModal(techId) {
   document.getElementById('tpmBookingForm').style.display = 'none';
   document.body.style.overflow = 'hidden';
 
-  fetch(window.FG_BACKEND + 'repair_bookings.php?action=technician_profile&id=' + techId)
+  fetch('api/session/user'repair_bookings.php?action=technician_profile&id=' + techId)
     .then(r => r.json())
     .then(d => {
       if (!d.success) throw new Error(d.message || 'Failed to load profile.');
@@ -9564,7 +9564,7 @@ function submitBooking() {
   if (photoInput && photoInput.files[0]) fd.append('phone_photo', photoInput.files[0]);
   fd.append('service_type', document.getElementById('bfServiceType')?.value || 'shop_fix');
 
-  fetch(window.FG_BACKEND + 'repair_bookings.php', {
+  fetch('api/session/user'repair_bookings.php', {
     method: 'POST',
     credentials: 'include',
     body: fd   // No Content-Type header — browser sets multipart boundary automatically

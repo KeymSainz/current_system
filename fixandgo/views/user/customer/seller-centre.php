@@ -794,7 +794,7 @@
       else el.textContent = initials.toUpperCase() || '?';
     })(user.avatar_url || null);
 
-    fetch('../../../backend/session-user.php',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    fetch('../../../api/session/user',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
       if (d.loggedIn && d.user) { FGAuth.UserStore.save(d.user); var el=document.getElementById('sidebarAvatarInitials'); if(el&&d.user.avatar_url) el.innerHTML='<img src="'+d.user.avatar_url+'" alt="avatar" onerror="this.parentElement.textContent=\''+initials.toUpperCase()+'\'">'; }
     }).catch(function(){});
 

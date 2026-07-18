@@ -195,7 +195,7 @@
   <script src="../../../assets/js/auth-utils.js"></script>
   <script src="../../../assets/js/session-timeout.js"></script>
   <script>
-  const API = '../../../backend/messages.php';
+  const API = '../../../api/messages';
   let myId = null;
   let activeConvId = null;
   let pollTimer = null;

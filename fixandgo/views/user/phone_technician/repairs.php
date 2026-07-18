@@ -938,7 +938,7 @@
       fd.append('body', fullMsg);
       if(hasProof)      fd.append('attachment',  proofInput.files[0]);
       if(hasPricePhoto) fd.append('attachment2', priceInput.files[0]);
-      return fetch('../../../backend/messages.php',{method:'POST',credentials:'include',body:fd})
+      return fetch('../../../api/messages',{method:'POST',credentials:'include',body:fd})
         .then(r=>r.json())
         .then(d=>{ if(!d.success) throw new Error(d.message||'Message failed.'); });
     };
@@ -1052,7 +1052,7 @@
     fd.append('action','send'); fd.append('other_id',_suCustomerId);
     if(msg) fd.append('body',msg);
     if(hasFile) fd.append('attachment',fi.files[0]);
-    fetch('../../../backend/messages.php',{method:'POST',credentials:'include',body:fd})
+    fetch('../../../api/messages',{method:'POST',credentials:'include',body:fd})
       .then(r=>r.json()).then(d=>{
         if(!d.success) throw new Error(d.message||'Failed.');
         showAlert('suAlert','Update sent to customer!',true);

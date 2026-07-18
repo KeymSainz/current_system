@@ -292,8 +292,8 @@
   <script>
   'use strict';
   const ORDERS_API = '../../../backend/technician_orders.php';
-  const MKT_API    = '../../../backend/technician_marketplace.php';
-  const MSG_API    = '../../../backend/messages.php';
+  const MKT_API    = '../../../api/technician/marketplace';
+  const MSG_API    = '../../../api/messages';
 
   // ── Cart (sessionStorage) ─────────────────────────────────
   const CART_KEY = 'fg_tech_cart';

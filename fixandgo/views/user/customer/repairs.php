@@ -226,7 +226,7 @@
       if (url) { el.innerHTML = '<img src="' + url + '" alt="avatar" onerror="this.parentElement.textContent=\'' + initials.toUpperCase() + '\'">' ; }
       else { el.textContent = initials.toUpperCase() || '?'; }
     })(user.avatar_url || null);
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r){return r.json();}).then(function(d){
         if (d.loggedIn && d.user) {
           FGAuth.UserStore.save(d.user);
@@ -357,7 +357,7 @@
 
   function cancelBooking(id) {
     if (!confirm('Cancel booking #' + id + '?')) return;
-    fetch('../../../backend/repair_bookings.php', {
+    fetch('../../../api/repair/bookings', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'cancel', booking_id: id })
@@ -534,7 +534,7 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing…';
 
-    fetch('../../../backend/repair_bookings.php', {
+    fetch('../../../api/repair/bookings', {
       method: 'POST', credentials: 'include',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({

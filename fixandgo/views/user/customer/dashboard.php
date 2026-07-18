@@ -540,7 +540,7 @@
     renderSidebarAvatar(user.avatar_url || null);
 
     // Then fetch fresh from server to get latest avatar_url
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.loggedIn && data.user) {
@@ -843,7 +843,7 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing…';
 
-    fetch('../../../backend/repair_bookings.php', {
+    fetch('../../../api/repair/bookings', {
       method: 'POST', credentials: 'include',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({

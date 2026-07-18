@@ -254,7 +254,7 @@
   <script src="../../../assets/js/auth-utils.js"></script>
   <script src="../../../assets/js/session-timeout.js"></script>
   <script>
-  const API = '../../../backend/messages.php';
+  const API = '../../../api/messages';
   let myId = null;
   let activeConvId = null;
   let allConvs = [];
@@ -277,7 +277,7 @@
       else { el.textContent = initials.toUpperCase() || '?'; }
     })(user.avatar_url || null);
     // Refresh from server
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r){return r.json();}).then(function(d){
         if (d.loggedIn && d.user) {
           FGAuth.UserStore.save(d.user);
@@ -649,7 +649,7 @@
       document.getElementById('msgBfName').value    = ((user.firstName||'') + ' ' + (user.lastName||'')).trim();
       document.getElementById('msgBfContact').value = user.phone || '';
     }
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r){return r.json();})
       .then(function(d) {
         if (d.loggedIn && d.user) {
@@ -783,7 +783,7 @@
     if (schedule) fd.append('scheduled_at', schedule);
     if (photoInput && photoInput.files[0]) fd.append('phone_photo', photoInput.files[0]);
     fd.append('service_type', document.getElementById('msgBfServiceType').value || 'shop_fix');
-    fetch('../../../backend/repair_bookings.php', { method: 'POST', credentials: 'include', body: fd })
+    fetch('../../../api/repair/bookings', { method: 'POST', credentials: 'include', body: fd })
       .then(function(r){return r.json();})
       .then(function(d) {
         if (!d.success) throw new Error(d.message || 'Booking failed.');

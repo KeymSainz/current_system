@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return parts.length <= 1 ? 'fixandgo/backend/' : 'backend/';
   })();
 
-  fetch(_B + 'session-user.php')
+  fetch('api/session/user')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       if (data.loggedIn && data.user) {
@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
       logoutBtn.addEventListener('click', function (e) {
         e.preventDefault();
         FGAuth.showLogoutModal(function() {
-          fetch(_B + 'logout.php', { method: 'POST' })
+          fetch('api/logout', { method: 'POST' })
             .catch(function(error) { console.log('Logout error:', error); })
             .finally(function () {
               FGAuth.UserStore.clear();
@@ -821,7 +821,7 @@ document.addEventListener('DOMContentLoaded', function () {
     `;
     document.body.appendChild(loadingEl);
 
-    fetch(_B + 'paymongo.php', {
+    fetch('api/paymongo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -858,7 +858,7 @@ document.addEventListener('DOMContentLoaded', function () {
     `;
     document.body.appendChild(loadingEl);
 
-    fetch(_B + 'paymongo.php', {
+    fetch('api/paymongo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'create_checkout', product_ids: productIds }),
@@ -889,7 +889,7 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   function ownerAction(action, ids) {
-    fetch(_B + 'owner_products.php', {
+    fetch('api/owner/products', {
       credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1644,7 +1644,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* -- Load marketplace products -------------------------------- */
   function loadMarketplaceProducts() {
-    fetch(_B + 'marketplace_products.php', { credentials: 'include' })
+    fetch('api/marketplace/products', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (!data.success) throw new Error(data.message);
@@ -1707,7 +1707,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* -- Load marketplace technicians ------------------------------ */
   function loadMarketplaceTechnicians() {
-    fetch(_B + 'marketplace_technicians.php', { credentials: 'include' })
+    fetch('api/marketplace/technicians', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (!data.success) throw new Error(data.message);
@@ -1781,7 +1781,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* -- Load marketplace messages ---------------------------------- */
   function loadMarketplaceMessages() {
-    fetch(_B + 'get_conversations.php', { credentials: 'include' })
+    fetch('api/messages', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (!data.success) throw new Error(data.message);

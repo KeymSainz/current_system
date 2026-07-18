@@ -281,7 +281,7 @@
       if (url) { el.innerHTML = '<img src="' + url + '" alt="avatar" onerror="this.parentElement.textContent=\'' + initials.toUpperCase() + '\'">' ; }
       else { el.textContent = initials.toUpperCase() || '?'; }
     })(user.avatar_url || null);
-    fetch('../../../backend/session-user.php', { credentials: 'include' })
+    fetch('../../../api/session/user', { credentials: 'include' })
       .then(function(r){return r.json();}).then(function(d){
         if (d.loggedIn && d.user) {
           FGAuth.UserStore.save(d.user);
@@ -515,7 +515,7 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Cancelling…';
     document.getElementById('cancelAlert').style.display = 'none';
-    fetch('../../../backend/customer_orders.php', {
+    fetch('../../../api/customer/orders', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ action: 'cancel', order_id: _cancelOrderId, reason, notes: document.getElementById('cancelNotes').value.trim() })
     })
@@ -573,7 +573,7 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Submitting…';
     alertEl.style.display = 'none';
-    fetch('../../../backend/customer_orders.php', {
+    fetch('../../../api/customer/orders', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
       body: JSON.stringify({ action: 'review', product_id: _reviewProductId, order_id: _reviewOrderId, rating: _reviewRating, review_text: text })
     })

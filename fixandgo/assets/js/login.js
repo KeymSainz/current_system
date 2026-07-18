@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ── Fetch real CSRF token from server on load ──────────────────────────
   var backendBase = window.FG_BACKEND || 'backend/';
-  fetch(backendBase + 'csrf-token.php', { credentials: 'include' })
+  fetch('api/session/csrf', { credentials: 'include' })
     .then(function (r) { return r.json(); })
     .then(function (data) {
       document.querySelectorAll('[name="_csrf"]').forEach(function (el) {
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const formData = new FormData(form);
 
-    fetch((window.FG_BACKEND || 'backend/') + 'login.php', {
+    fetch('api/login', {
       method: 'POST',
       body:   formData,
       credentials: 'include',
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
     googleBtn.innerHTML =
       '<span class="btn-spinner" style="display:inline-block;border:2px solid rgba(0,0,0,0.2);border-top-color:#333;width:1rem;height:1rem;border-radius:50%;animation:spin 0.7s linear infinite;"></span> Connecting…';
 
-    window.location.href = (window.FG_BACKEND || 'backend/') + 'google-auth-init.php';
+    window.location.href = 'api/auth/google';
   });
 
   /* ------------------------------------------------------------------ */

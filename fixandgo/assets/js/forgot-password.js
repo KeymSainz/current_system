@@ -22,12 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let csrfToken        = '';
 
   // ── Fetch CSRF token on load ───────────────────────────────────────────
-  const _B = window.FG_BACKEND || (function() {
-    var parts = window.location.pathname.split('/').filter(Boolean);
-    return parts.length <= 1 ? 'fixandgo/backend/' : 'backend/';
-  })();
-
-  fetch(_B + 'csrf-token.php')
+  fetch('api/session/csrf')
     .then(function (r) { return r.json(); })
     .then(function (data) {
       csrfToken = data.token;
@@ -56,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fd.append('_csrf',  csrfToken);
     fd.append('email',  email);
 
-    fetch(_B + 'forgot-password.php', { method: 'POST', body: fd, credentials: 'include' })
+    fetch('api/password/forgot', { method: 'POST', body: fd, credentials: 'include' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         FGAuth.setButtonLoading(fpBtn, false);
@@ -154,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
     verifyFd.append('otp',     code);
     verifyFd.append('purpose', 'reset');
 
-    fetch(_B + 'verify-otp.php', { method: 'POST', body: verifyFd })
+    fetch('api/otp/verify', { method: 'POST', body: verifyFd })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (!data.success) {
@@ -170,7 +165,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resetFd.append('_csrf',       csrfToken);
         resetFd.append('newPassword', newPw);
 
-        return fetch(_B + 'reset-password.php', { method: 'POST', body: resetFd });
+        return fetch('api/password/reset', { method: 'POST', body: resetFd });
       })
       .then(function (r) {
         if (!r) return; // already handled above

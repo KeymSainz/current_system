@@ -244,7 +244,7 @@
   <script src="../../assets/js/session-timeout.js"></script>
   <script>
   'use strict';
-  const MSG_API = '../../../backend/messages.php';
+  const MSG_API = '../../../api/messages';
   let myId = 0;
   let activeConvId = null;
   let allConvs = [];
