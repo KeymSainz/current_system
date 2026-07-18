@@ -48,8 +48,8 @@ vendor/
 *.sql.zip
 backup_*.sql
 
-# PHPMailer — using local copy
-# PHPMailer-PHPMailer-3cd2a2a/
+# PHPMailer — removed, using PHP built-in mail()
+PHPMailer-PHPMailer-3cd2a2a/
 
 # Test/debug files
 test_*.php

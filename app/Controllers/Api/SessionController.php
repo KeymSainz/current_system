@@ -59,7 +59,6 @@ class SessionController extends Controller
             echo json_encode(['loggedIn' => false, 'expired' => true]);
             exit;
         }
-        $_SESSION['_last_activity'] = time();
         echo json_encode(['loggedIn' => true, 'success' => true]);
         exit;
     }

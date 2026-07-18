@@ -54,53 +54,6 @@ function startSecureSession(): void
         ]);
         session_start();
     }
-
-    // ── Enforce 10-minute idle timeout ───────────────────────────────────
-    $timeout = 600; // 10 minutes
-
-    if (!empty($_SESSION['user_id'])) {
-        $lastActivity = $_SESSION['_last_activity'] ?? time();
-
-        if ((time() - $lastActivity) > $timeout) {
-            // Session expired — destroy it and signal the client
-            session_unset();
-            session_destroy();
-
-            // Treat as API if: JSON accept header, XHR header, or direct .php request
-            // Exclude OAuth callback — it's a browser redirect, not an API call
-            $scriptFile = $_SERVER['SCRIPT_FILENAME'] ?? '';
-            $isOAuthCallback = str_contains($scriptFile, 'google-callback.php');
-
-            $isApi = !$isOAuthCallback && (
-                (
-                    isset($_SERVER['HTTP_ACCEPT']) &&
-                    str_contains($_SERVER['HTTP_ACCEPT'], 'application/json')
-                ) || (
-                    isset($_SERVER['HTTP_X_REQUESTED_WITH']) &&
-                    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
-                ) || (
-                    // fetch() calls to backend PHP files are always API calls
-                    isset($_SERVER['SCRIPT_FILENAME']) &&
-                    str_contains($_SERVER['SCRIPT_FILENAME'], '/backend/')
-                )
-            );
-
-            if ($isApi) {
-                http_response_code(401);
-                header('Content-Type: application/json');
-                echo json_encode([
-                    'success'   => false,
-                    'message'   => 'Session expired. Please log in again.',
-                    'expired'   => true,
-                ]);
-                exit;
-            }
-            return; // Let the calling script handle the redirect
-        }
-
-        // Refresh the last-activity timestamp on every valid request
-        $_SESSION['_last_activity'] = time();
-    }
 }
 
 // ── CSRF ──────────────────────────────────────────────────────────────────

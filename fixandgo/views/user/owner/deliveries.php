@@ -180,7 +180,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../../../assets/js/theme.js"></script>
   <script src="../../../assets/js/auth-utils.js"></script>
-  <script src="../../assets/js/session-timeout.js"></script>
   <script>
     const DELIVERIES = [
       { id: 'DEL-101', orderId: 'ORD-501', shop: 'QuickFix Manila',  address: '123 Taft Ave, Manila',       courier: 'J&T Express',   status: 'In Transit',       expected: 'Jun 13, 2025' },

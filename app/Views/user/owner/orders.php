@@ -96,7 +96,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/auth-utils.js"></script>
-  <script src="/assets/js/session-timeout.js"></script>
   <script>
     const ORDERS=[
       {id:'BK-1042', customer:'Maria Santos',   device:'iPhone 14',      service:'Screen Repair',    tech:'Carlos Reyes',   status:'In Progress', date:'Jun 10, 2025'},

@@ -616,7 +616,6 @@
   <script src="../../../assets/js/ph-location.js"></script>
   <script src="../../../assets/js/theme.js"></script>
   <script src="../../../assets/js/auth-utils.js"></script>
-  <script src="../../../assets/js/session-timeout.js"></script>
   <script>
   // ── Auth & sidebar ────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {

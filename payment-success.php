@@ -266,7 +266,6 @@
 
   <script src="assets/js/theme.js"></script>
   <script src="assets/js/auth-utils.js"></script>
-  <script src="assets/js/session-timeout.js"></script>
   <script>
     // Auth guard
     const user = FGAuth.UserStore.get();

@@ -714,7 +714,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/auth-utils.js"></script>
-  <script src="/assets/js/session-timeout.js"></script>
   <script>
     // Owner auth guard override - runs before manage-products.js
     document.addEventListener('DOMContentLoaded', function() {

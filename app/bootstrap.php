@@ -26,28 +26,6 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// ── Enforce session idle timeout ──────────────────────────────────────────
-if (!empty($_SESSION['user_id'])) {
-    $timeout      = 600; // 10 minutes
-    $lastActivity = $_SESSION['_last_activity'] ?? time();
-
-    if ((time() - $lastActivity) > $timeout) {
-        session_unset();
-        session_destroy();
-
-        // If this is an API call, return JSON
-        $uri = $_SERVER['REQUEST_URI'] ?? '';
-        if (strpos($uri, '/api/') !== false) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Session expired. Please log in again.', 'expired' => true]);
-            exit;
-        }
-    } else {
-        $_SESSION['_last_activity'] = time();
-    }
-}
-
 // ── CORS headers (API calls only) ─────────────────────────────────────────
 $origin  = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = ['https://fixandgo.freedev.app'];
