@@ -24,12 +24,9 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^views/(.*)$  router.php [QSA,L]
 
 # ── Legacy backend/ compatibility (redirect to MVC API routes) ───────────
-# Keep old URLs working during transition period
 RewriteRule ^backend/login\.php$               router.php?_route=api/login [QSA,L]
 RewriteRule ^backend/logout\.php$              router.php?_route=api/logout [QSA,L]
 RewriteRule ^backend/register\.php$            router.php?_route=api/register [QSA,L]
-RewriteRule ^backend/verify-otp\.php$          router.php?_route=api/otp/verify [QSA,L]
-RewriteRule ^backend/resend-otp\.php$          router.php?_route=api/otp/resend [QSA,L]
 RewriteRule ^backend/forgot-password\.php$     router.php?_route=api/password/forgot [QSA,L]
 RewriteRule ^backend/reset-password\.php$      router.php?_route=api/password/reset [QSA,L]
 RewriteRule ^backend/session-user\.php$        router.php?_route=api/session/user [QSA,L]

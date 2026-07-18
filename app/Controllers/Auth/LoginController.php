@@ -3,29 +3,31 @@ namespace App\Controllers\Auth;
 
 use App\Core\Controller;
 use App\Models\UserModel;
-use App\Models\OtpModel;
 
+/**
+ * Fix&Go — Login Controller
+ * POST /api/login  → validate credentials → create session → redirect by role
+ * POST /api/logout → destroy session
+ * OTP removed: login is direct (password only).
+ */
 class LoginController extends Controller
 {
     private UserModel $users;
-    private OtpModel  $otps;
 
     public function __construct()
     {
         parent::__construct();
         $this->users = new UserModel();
-        $this->otps  = new OtpModel();
     }
 
-    // POST /api/login
     public function login(): void
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             $this->json(false, 'Method not allowed.', [], 405);
         }
 
-        $config = require APP_ROOT . '/app/Core/config.php';
-        $maxAttempts    = (int)($config['login_max_attempts']    ?? 3);
+        $config         = require APP_ROOT . '/app/Core/config.php';
+        $maxAttempts    = (int)($config['login_max_attempts']    ?? 5);
         $lockoutSeconds = (int)($config['login_lockout_seconds'] ?? 900);
 
         $email    = trim($_POST['email']    ?? '');
@@ -36,21 +38,18 @@ class LoginController extends Controller
             $this->json(false, 'Invalid email or password.', [], 401);
         }
 
-        // Dummy hash for constant-time comparison
+        // Constant-time dummy hash to prevent timing attacks
         $dummyHash = '$2y$12$invalidhashtopreventtimingattacks000000000000000000000';
         $user      = $this->users->findByEmail($email);
         $hash      = $user ? $user['password_hash'] : $dummyHash;
         $passOk    = password_verify($password, $hash);
 
-        // Lockout check
-        if ($user && !empty($user['locked_until'])) {
-            $lockedUntil = strtotime($user['locked_until']);
-            if ($lockedUntil > time()) {
-                $mins = ceil(($lockedUntil - time()) / 60);
-                $this->json(false, "Account locked. Try again in {$mins} minute(s).", [
-                    'locked' => true, 'seconds_left' => $lockedUntil - time(),
-                ], 429);
-            }
+        // Check account lockout
+        if ($user && !empty($user['locked_until']) && strtotime($user['locked_until']) > time()) {
+            $mins = ceil((strtotime($user['locked_until']) - time()) / 60);
+            $this->json(false, "Account locked. Try again in {$mins} minute(s).", [
+                'locked' => true, 'seconds_left' => strtotime($user['locked_until']) - time(),
+            ], 429);
         }
 
         if (!$user || !$passOk) {
@@ -61,7 +60,7 @@ class LoginController extends Controller
                     $lockedUntil = date('Y-m-d H:i:s', time() + $lockoutSeconds);
                     $this->users->incrementLoginAttempts($user['id'], $newAttempts, $lockedUntil);
                     $this->users->logActivity($user['id'], 'login_failed');
-                    $this->json(false, 'Account locked for ' . ceil($lockoutSeconds / 60) . ' minutes.', [
+                    $this->json(false, 'Too many failed attempts. Account locked for ' . ceil($lockoutSeconds / 60) . ' minutes.', [
                         'locked' => true, 'seconds_left' => $lockoutSeconds,
                     ], 429);
                 }
@@ -82,44 +81,61 @@ class LoginController extends Controller
             $this->json(false, 'Account inactive. Contact support.', [], 403);
         }
 
+        // Reset login attempts
         $this->users->resetLoginAttempts($user['id']);
 
-        // Generate OTP
-        $otp       = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $otpHash   = password_hash($otp, PASSWORD_BCRYPT);
-        $expiresAt = date('Y-m-d H:i:s', time() + ($config['otp_expiry'] ?? 600));
-        $purpose   = $user['is_verified'] ? 'login' : 'verify';
+        // Create session immediately — no OTP
+        session_regenerate_id(true);
+        $_SESSION['user_id']   = $user['id'];
+        $_SESSION['user_role'] = $user['role'];
+        $_SESSION['user_name'] = $user['first_name'];
 
-        $this->otps->create($user['id'], $otpHash, $purpose, $expiresAt);
+        $this->users->logActivity($user['id'], 'login');
+        $this->users->updateLastLogin($user['id']);
 
-        // Send OTP email
-        \ = file_exists(APP_ROOT . '/backend/mailer.php')
-    ? APP_ROOT . '/backend/mailer.php'
-    : APP_ROOT . '/fixandgo/backend/mailer.php';
-require_once \;
-        $sent = sendOTPEmail($user['email'], $user['first_name'], $otp, $purpose);
-
-        if (!$sent) {
-            $this->json(false, 'Could not send verification code. Try again.', [], 500);
+        // Remember me
+        if ($remember) {
+            $token     = bin2hex(random_bytes(32));
+            $tokenHash = hash('sha256', $token);
+            $lifetime  = (int)($config['remember_lifetime'] ?? 2592000);
+            $this->db->prepare('INSERT INTO remember_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)')
+                ->execute([$user['id'], $tokenHash, date('Y-m-d H:i:s', time() + $lifetime)]);
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+            setcookie('fg_remember', $token, ['expires' => time() + $lifetime, 'path' => '/', 'secure' => $isHttps, 'httponly' => true, 'samesite' => 'Strict']);
         }
 
-        $_SESSION['pending_email']    = $email;
-        $_SESSION['pending_purpose']  = $purpose;
-        $_SESSION['pending_remember'] = $remember;
+        // Role-based redirect
+        $redirectMap = [
+            'supervisor'       => '/views/user/supervisor/dashboard',
+            'owner'            => '/views/user/owner/dashboard',
+            'supplier'         => '/views/user/supplier/dashboard',
+            'sales_person'     => '/views/user/sales_person/dashboard',
+            'phone_technician' => '/views/user/phone_technician/dashboard',
+            'customer'         => '/',
+            'admin'            => '/dashboard.php',
+        ];
+        $redirect = $redirectMap[$user['role']] ?? '/';
 
-        if (!$user['is_verified']) {
-            $this->json(false, 'Verify your email first. A code was sent.', ['redirect' => 'otp.html'], 403);
-        }
-
-        $this->json(true, 'Verification code sent to ' . $email, ['redirect' => 'otp.html']);
+        $this->json(true, 'Login successful! Welcome back, ' . $user['first_name'] . '.', [
+            'redirect' => $redirect,
+            'user'     => [
+                'id'         => $user['id'],
+                'firstName'  => $user['first_name'],
+                'lastName'   => $user['last_name'],
+                'email'      => $user['email'],
+                'role'       => $user['role'],
+                'verified'   => true,
+                'avatar_url' => $user['avatar_url'] ?? null,
+            ],
+        ]);
     }
 
-    // POST /api/logout
     public function logout(): void
     {
         if (!empty($_SESSION['user_id'])) {
             $this->users->logActivity((int)$_SESSION['user_id'], 'logout');
         }
+        setcookie('fg_remember', '', time() - 3600, '/');
         session_unset();
         session_destroy();
         $this->json(true, 'Logged out successfully.');

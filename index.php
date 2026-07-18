@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- FG_BACKEND set first so all inline scripts can use it -->
-<script>window.FG_BACKEND = 'api/session/user'';</script>
+<script>window.FG_BACKEND = 'api/session/user';</script>
 
 <html lang="en" data-theme="dark">
 
@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <!-- FG_BACKEND must be defined FIRST before any inline scripts use it -->
-  <script>window.FG_BACKEND = 'api/session/user'';</script>
+  <script>window.FG_BACKEND = 'api/session/user';</script>
   <!-- Force SW unregister + cache clear on every load -->
   <script>
     if ('serviceWorker' in navigator) {

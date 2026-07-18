@@ -19,9 +19,6 @@ $router = new Router();
 $router->post('/api/login',              'Auth\LoginController@login');
 $router->post('/api/logout',             'Auth\LoginController@logout');
 $router->post('/api/register',           'Auth\RegisterController@register');
-$router->post('/api/otp/verify',         'Auth\OtpController@verify');
-$router->post('/api/otp/resend',         'Auth\OtpController@resend');
-$router->post('/api/password/forgot',    'Auth\PasswordController@forgot');
 $router->post('/api/password/reset',     'Auth\PasswordController@reset');
 
 // ── Session ───────────────────────────────────────────────────────────────

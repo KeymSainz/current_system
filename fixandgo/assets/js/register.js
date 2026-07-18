@@ -184,15 +184,13 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
 
-        // Store pending email so OTP page knows who to verify
-        sessionStorage.setItem('fg_pending_email', emailInput.value.trim());
-        FGAuth.showAlert('registerAlert', data.message, 'success');
-
+        // Account created and logged in — redirect directly
+        if (data.user) {
+          FGAuth.UserStore.save(data.user);
+        }
+        FGAuth.showAlert('registerAlert', data.message || 'Account created!', 'success');
         setTimeout(function () {
-          const dest = (!data.redirect || data.redirect === 'otp.php')
-            ? 'fixandgo/otp.html'
-            : data.redirect;
-          window.location.href = dest;
+          window.location.href = data.redirect || '/';
         }, 800);
       })
       .catch(function () {

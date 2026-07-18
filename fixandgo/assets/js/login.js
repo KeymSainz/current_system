@@ -132,24 +132,15 @@ document.addEventListener('DOMContentLoaded', function () {
         FGAuth.setButtonLoading(loginBtn, false);
 
         if (!data.success) {
-          // Redirect to OTP page (unverified account)
-          if (data.redirect === 'otp.php') {
-            sessionStorage.setItem('fg_pending_email', email);
-            sessionStorage.setItem('fg_pending_purpose', 'verify');
-            window.location.href = 'fixandgo/otp.html';
-            return;
-          }
-
           // Account locked
           if (data.locked) {
             showLockoutBanner(data.seconds_left || 900);
             loginBtn.disabled = true;
             return;
           }
-
           // Failed attempt — show remaining count
           if (data.remaining !== undefined) {
-            showAttemptWarning(data.remaining, data.max_attempts || 3);
+            showAttemptWarning(data.remaining, data.max_attempts || 5);
           } else {
             FGAuth.showAlert('loginAlert', data.message, 'danger');
           }
@@ -159,20 +150,14 @@ document.addEventListener('DOMContentLoaded', function () {
         rateLimiter.reset();
         clearLockoutBanner();
 
-        // Save user to JS session store for dashboard rendering
+        // Save user to JS session store
         if (data.user) {
           FGAuth.UserStore.save(data.user);
         }
 
-        // Login OTP sent — go to OTP page
-        sessionStorage.setItem('fg_pending_email', email);
-        sessionStorage.setItem('fg_pending_purpose', 'login');
+        // Redirect directly — no OTP step
         const redirectParam = new URLSearchParams(window.location.search).get('redirect') || '';
-        if (redirectParam) sessionStorage.setItem('fg_post_login_redirect', redirectParam);
-        // Normalize otp.php redirect to actual otp location
-        const dest = (!data.redirect || data.redirect === 'otp.php')
-          ? 'fixandgo/otp.html'
-          : data.redirect;
+        const dest = redirectParam || data.redirect || '/';
         window.location.href = dest;
       })
       .catch(function () {

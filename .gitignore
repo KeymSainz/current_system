@@ -51,6 +51,11 @@ backup_*.sql
 # PHPMailer — removed, using PHP built-in mail()
 PHPMailer-PHPMailer-3cd2a2a/
 
+# Deploy artifacts
+fixandgo_deploy/
+fixandgo_deploy.zip
+fixandgo.zip
+
 # Test/debug files
 test_*.php
 debug_*.php
